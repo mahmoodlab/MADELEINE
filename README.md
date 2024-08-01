@@ -50,7 +50,11 @@ TIP: place the data directory on SSD for faster I/O and training. We use 3x24GB 
 
 # Evaluate MADELEINE on BCNB molecular status prediction
 
-TODO. 
+```
+cd ./bin
+# update file with the model your want to evaluate
+python run_linear_probing.py
+```
 
 # Issues 
 
