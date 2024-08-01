@@ -21,7 +21,7 @@ if __name__ == "__main__":
     set_deterministic_mode(SEED=42)
     
     # geenral set up 
-    args, STAINS = setup()
+    args = setup()
     
     # set up dataset
     dataset = setup_dataset(args)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         
         # train
         start = time.time()
-        ep_loss, train_rank = train_loop(args, STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, ssl_model, epoch, dataloader, optimizer, scheduler_warmup, scheduler)
+        ep_loss, train_rank = train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, ssl_model, epoch, dataloader, optimizer, scheduler_warmup, scheduler)
         
         if args.log_ml:
             wandb.log({"train_loss": ep_loss, "train_rank": train_rank})

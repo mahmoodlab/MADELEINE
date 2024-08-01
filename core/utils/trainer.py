@@ -21,7 +21,7 @@ WHOLE_VIEW_POSITION = 0
 
 
 # move to utils
-def calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, wsi_embs, token_embs, modality_labels_withoutHE, config):
+def calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, wsi_embs, token_embs, modality_labels_withoutHE, args):
     losses = []
     atleast_two_loss_flag = False
 
@@ -33,8 +33,8 @@ def calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_i
                 HE_for_stain = wsi_embs["HE"][:, WHOLE_VIEW_POSITION, :, stain_idx][stain_mask]
                 stain_ind = wsi_embs[stain][:, WHOLE_VIEW_POSITION, :][stain_mask]
 
-                if config.global_loss == "info-nce":
-                    global_loss = loss_fn_interMod(query=HE_for_stain, positive_key=stain_ind, symmetric=config.symmetric_cl)
+                if args.global_loss == "info-nce":
+                    global_loss = loss_fn_interMod(query=HE_for_stain, positive_key=stain_ind, symmetric=args.symmetric_cl)
                 else:
                     raise AssertionError("invalid global loss")
 
@@ -46,7 +46,7 @@ def calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_i
                 HE_tokens = token_embs["HE"][:, :, :, stain_idx][stain_mask]
                 IHC_tokens = token_embs[stain].squeeze()[stain_mask]
                 got_loss = loss_fn_interMod_local(HE_tokens, IHC_tokens, subsample=256)
-                got_loss = got_loss * config.local_loss_weight
+                got_loss = got_loss * args.local_loss_weight
 
                 # add to loss 
                 losses.append(got_loss)
@@ -62,8 +62,8 @@ def calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_i
                 stain_ind_view2 = wsi_embs[stain][:, 2, :][stain_mask]
 
                 # intra modal loss for HE and stain
-                l_HE = loss_fn_intraMod(query=HE_for_stain_view1, positive_key=HE_for_stain_view2, symmetric=config.symmetric_cl)
-                l_stain = loss_fn_intraMod(query=stain_ind_view1, positive_key=stain_ind_view2, symmetric=config.symmetric_cl)
+                l_HE = loss_fn_intraMod(query=HE_for_stain_view1, positive_key=HE_for_stain_view2, symmetric=args.symmetric_cl)
+                l_stain = loss_fn_intraMod(query=stain_ind_view1, positive_key=stain_ind_view2, symmetric=args.symmetric_cl)
 
                 # add to loss 
                 losses.append(l_HE)
@@ -81,7 +81,7 @@ def calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_i
     return loss, atleast_two_loss_flag
 
 # move to utils
-def train_loop(STAINS, config, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, ssl_model, epoch, dataloader, optimizer, scheduler_warmup, scheduler):
+def train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, ssl_model, epoch, dataloader, optimizer, scheduler_warmup, scheduler):
 
     if loss_fn_intraMod:
         n_views = 3
@@ -90,7 +90,7 @@ def train_loop(STAINS, config, loss_fn_interMod, loss_fn_interMod_local, loss_fn
         
     ssl_model.train()
     ssl_model.to(DEVICE)
-    ssl_model, torch_precision = set_model_precision(ssl_model, config.precision)
+    ssl_model, torch_precision = set_model_precision(ssl_model, args.precision)
 
     ep_loss = 0.
     fb_time = 0.
@@ -118,7 +118,7 @@ def train_loop(STAINS, config, loss_fn_interMod, loss_fn_interMod_local, loss_fn
         wsi_embs, token_embs = ssl_model(data, device=DEVICE, n_views=n_views)
         
         # calculate losses
-        loss, atleast_two_loss_flag = calculate_losses(STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, wsi_embs, token_embs, modality_labels_withoutHE, config)
+        loss, atleast_two_loss_flag = calculate_losses(args.STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, wsi_embs, token_embs, modality_labels_withoutHE, args)
             
         # get the train embeds to calculate rank
         all_embeds.extend(wsi_embs['HE'][:, WHOLE_VIEW_POSITION, :, 0].detach().to(torch.float32).cpu().numpy())
@@ -132,7 +132,7 @@ def train_loop(STAINS, config, loss_fn_interMod, loss_fn_interMod_local, loss_fn
         loss.backward()
         optimizer.step()
 
-        if epoch <= config.warmup_epochs:
+        if epoch <= args.warmup_epochs:
             scheduler_warmup.step()
         else:
             scheduler.step()  

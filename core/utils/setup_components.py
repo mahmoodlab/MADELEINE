@@ -118,10 +118,14 @@ def setup():
     STAINS = MODALITIES.copy() 
     STAINS.pop(HE_POSITION)
     
-    return args, STAINS
+    # add to args
+    args.MODALITIES = MODALITIES
+    args.STAINS = STAINS
+    
+    return args
 
 
-def setup_dataset(args, MODALITIES):
+def setup_dataset(args):
     
     print("* Setup dataset...", end="")
     dataset = SlideDataset(
@@ -129,7 +133,7 @@ def setup_dataset(args, MODALITIES):
         csv_path=args.csv_fpath, 
         features_path=args.data_root_dir,
         sample=args.n_subsamples,
-        modalities=MODALITIES,
+        modalities=args.MODALITIES,
         embedding_size=args.patch_embedding_dim,
     )
     print("\033[92m Done \033[0m")
@@ -147,7 +151,7 @@ def setup_dataloader(args, dataset):
     print("\033[92m Done \033[0m")
     return dataloader
 
-def setup_DownstreamDatasets(build_downstream_datasets, args):
+def setup_DownstreamDatasets(args):
     print("* Setup downstream datasets...", end="")
     val_datasets = build_downstream_datasets(args)
     print("\033[92m Done \033[0m")
@@ -168,13 +172,13 @@ def setup_DownstreamDatasets(build_downstream_datasets, args):
     
     return val_dataloaders
 
-def setup_model(DEVICE, args, MODALITIES):
+def setup_model(args):
     
     print("* Setup model...", end="")
     # init model
     ssl_model = MADELEINE(
         config=args,
-        modalities=MODALITIES,
+        modalities=args.MODALITIES,
         stain_encoding=args.add_stain_encoding,
     ).to(DEVICE)
 
