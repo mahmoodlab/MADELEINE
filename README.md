@@ -29,14 +29,21 @@ pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cu121
 
 # Code 
 
-TODO.
+The workflow is as follows:
+
+0. Tissue segmentation and patch feature extraction of pre-training and downstream datasets
+1. Train MADELEINE slide embedder model (HE-multi-stain alignment)
+2. Use MADELEINE checkpoint to extract slide embeddings of a downstream dataset
+3. Perform linear probe evaluation using the MADELEINE extracted slide embeddings
+
+We now explain how to run each step.
 
 
 # Preprocessing 
 
 TODO.
 
-# Train MADELEINE on Breast using ACROBAT 
+# Train MADELEINE on Breast using ACROBAT
 ```
 cd ./bin
 
@@ -46,14 +53,25 @@ bash ../scripts/launch_pretrain_withoutStainEncodings.sh
 # launch pretraining with stain encodings
 bash ../scripts/launch_pretrain_withStainEncodings.sh
 ```
+NOTE: The pretrain script by default extracts the slide emebddings of the BCNB dataset used for downstream evaluation.
+
 TIP: place the data directory on SSD for faster I/O and training. We use 3x24GB 3090Ti for training.
 
 # Evaluate MADELEINE on BCNB molecular status prediction
 
+To evaluate a checkpoint, run:
+
 ```
 cd ./bin
-# update file with the model your want to evaluate
+# update file with the checkpoint you want to evaluate
 python run_linear_probing.py
+```
+
+If you want to load a checkpoint and only extract the slide embeddings, run:
+```
+cd ./bin
+# update file with the checkpoint to extract slide emebddings
+python extract_slide_embeddings_from_checkpoint.py
 ```
 
 # Issues 
