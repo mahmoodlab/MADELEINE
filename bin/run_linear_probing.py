@@ -187,3 +187,10 @@ if __name__ == "__main__":
         for n, t in tasks.items():
             print('\n* Dataset:', n)
             eval_single_task(n, t, p, verbose=False)
+            
+    print()
+    print(100*"-")
+    print("End of experiment, bye!")
+    print(100*"-")
+    print()
+    

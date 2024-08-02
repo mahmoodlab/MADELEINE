@@ -56,7 +56,6 @@ def build_downstream_datasets(args):
     
     return val_datasets
 
-# move to utils
 def set_up_logging(args, RESULS_SAVE_PATH):
     """
     Sets up logging using wandb.
@@ -99,12 +98,6 @@ def setup():
     os.makedirs(args.RESULS_SAVE_PATH, exist_ok=True)
     print("\033[92m Done \033[0m")
     
-    # save the config to the results path
-    print("* Saving experiment config...", end="")
-    with open(os.path.join(args.RESULS_SAVE_PATH, "config.json"), 'w') as handle:
-        json.dump(vars(args), handle, indent=4)
-    print("\033[92m Done \033[0m")
-    
     # set up logging 
     if args.log_ml:
         set_up_logging(args, args.RESULS_SAVE_PATH)
@@ -121,6 +114,12 @@ def setup():
     # add to args
     args.MODALITIES = MODALITIES
     args.STAINS = STAINS
+    
+    # save the config to the results path
+    print("* Saving experiment config...", end="")
+    with open(os.path.join(args.RESULS_SAVE_PATH, "config.json"), 'w') as handle:
+        json.dump(vars(args), handle, indent=4)
+    print("\033[92m Done \033[0m")
     
     return args
 

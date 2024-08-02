@@ -58,6 +58,9 @@ def get_args():
     parser.add_argument('--wandb_project_name', type=str, default='MADELEINE', help='Experiment name to use to log to WANDB')
     parser.add_argument('--wandb_entity', type=str, default='madeleine', help='Entity to use to log to WANDB')
     
+    #---> model inference 
+    parser.add_argument('--pretrained', type=str, default=None, help='Path to dir with checkpoint.')
+    
     args = parser.parse_args()
     
     # set paths 
@@ -83,6 +86,10 @@ def get_args():
     
     print("\033[92m Done \033[0m")
     
-    print(f"* Running experiment {args.EXP_CODE}...")
+    if args.pretrained is not None:
+        print(f"* Running experiment {args.EXP_CODE}...")
+    else:
+        print(f"* Running inference with model {args.EXP_CODE}...")
+        
     
     return args

@@ -17,7 +17,7 @@ python pretrain.py \
     --temperature 0.001 \
     --lr 0.0001 \
     --max_epochs 120 \
-    --batch_size 90 \
+    --batch_size 32 \
     --num_gpus 3 \
     --opt adamW \
     --num_workers 0 \
