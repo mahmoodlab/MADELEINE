@@ -2,7 +2,7 @@
 
 ### Global and Local loss pretraining without stain encodings ###
 python pretrain.py \
-    --data_root_dir ../data/pretrain/ACROBAT/feats_h5 \
+    --data_root_dir /home/guillaume/Documents/ssl/ssl-he-ihc/sample_data/acrobat/coca_vitb/feats_h5 \
     --results_dir results_brca \
     --cohort brca \
     --dataset ACROBAT \
