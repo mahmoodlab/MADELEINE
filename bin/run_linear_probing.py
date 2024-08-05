@@ -179,8 +179,8 @@ if __name__ == "__main__":
 
     # Put your model to eval here
     MODELS = {
-        'MADELEINE_without_StainEncoding': "../results_brca/f374d734839536dda2bd3e4ea2b17721",
-        'MADELEINE_with_StainEncoding': "../results_brca/897b021fc6544095d57cf058fae678a7",
+        'MADELEINE_without_StainEncoding': "../results_brca/0d9409dce058e1c2d722aaf512a885cc",
+        'MADELEINE_with_StainEncoding': "../results_brca/c2241f80b5cea25a1e504473f9823a4d",
     }
 
     for exp_name, p in MODELS.items():
