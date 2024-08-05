@@ -16,7 +16,6 @@ def create_model(
     model_cfg: Union[str, Dict],
     device: Union[str, torch.device] = 'cpu',
     checkpoint_path: Optional[str] = None,
-    hf_auth_token: Optional[str] = None
     ):
     
    # set up MADELEINE model
@@ -27,7 +26,7 @@ def create_model(
     
     # restore wsi embedder for downstream slide embedding extraction.
     if checkpoint_path:
-        state_dict =  torch.load(checkpoint_path)
+        state_dict = torch.load(checkpoint_path)
         sd = list(state_dict.keys())
         contains_module = any('module' in entry for entry in sd)
         
@@ -48,7 +47,6 @@ class MADELEINE(nn.Module):
 
         super(MADELEINE, self).__init__()
         self.config = config
-        self.n_tokens_wsi = config.n_subsamples
         self.modalities = config.MODALITIES
         self.stain_encoding = stain_encoding
 

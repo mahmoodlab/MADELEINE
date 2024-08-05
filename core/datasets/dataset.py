@@ -19,7 +19,7 @@ def load_features(h5_path):
     return feats
 
 class SlideDataset(Dataset):
-    def __init__(self, dataset_name, csv_path, features_path, modalities, embedding_size, sample=-1, train=True):
+    def __init__(self, dataset_name, csv_path, features_path, modalities, embedding_size=None, sample=-1, train=True):
         """
         Args:
             dataset_name (string) : name of dataset for differential handling 

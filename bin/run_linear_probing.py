@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
     # Put your model to eval here
     MODELS = {
-        'MADELEINE_without_StainEncoding': "../results_brca/DEBUG_dfc80197ddc463b89ee1cd2a5d89f421",
+        'MADELEINE_without_StainEncoding': "../results_brca/HUB_dfc80197ddc463b89ee1cd2a5d89f421",
         # 'MADELEINE_with_StainEncoding': "../results_brca/867b22cf3a3d315f356f267118aaa52b",
         # "mean" : "../results_brca/mean",
     }

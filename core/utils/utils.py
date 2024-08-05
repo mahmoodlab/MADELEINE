@@ -27,7 +27,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 HE_POSITION = 0 # HE slide is always the first one 
 
 # move to utils
-def run_inference(config, ssl_model, val_dataloader):
+def run_inference(ssl_model, val_dataloader, config=None, torch_precision=None):
     """
     Perform validation loop for the SSL model.
 
@@ -44,8 +44,9 @@ def run_inference(config, ssl_model, val_dataloader):
 
     # set model to eval 
     ssl_model.eval()
-    torch_precision = set_model_precision(config.precision)
-    
+    if torch_precision is None:
+        torch_precision = set_model_precision(config.precision)
+        
     all_embeds = []
     all_slide_ids = []
     
@@ -84,7 +85,7 @@ def extract_slide_level_embeddings(args, val_dataloaders, ssl_model):
     for dataset_name in val_dataloaders:
         print(f"\n* Extracting slide-level embeddings of {dataset_name}")
         curr_loader = val_dataloaders[dataset_name]
-        curr_results_dict, curr_val_rank = run_inference(args, ssl_model, curr_loader)
+        curr_results_dict, curr_val_rank = run_inference(ssl_model, curr_loader, config=args)
         print("Rank for {} = {}".format(dataset_name, curr_val_rank))
         print("\033[92mDone \033[0m")
         

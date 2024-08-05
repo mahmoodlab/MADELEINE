@@ -50,7 +50,6 @@ def build_downstream_datasets(args):
         csv_path= "../dataset_csv/BCNB/BCNB.csv",
         features_path="../data/downstream/BCNB/feats_h5",
         modalities=["HE"],
-        embedding_size=args.patch_embedding_dim,
         train=False
     )
 
