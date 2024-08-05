@@ -177,7 +177,6 @@ def setup_model(args):
     # init model
     ssl_model = MADELEINE(
         config=args,
-        modalities=args.MODALITIES,
         stain_encoding=args.add_stain_encoding,
     )
 

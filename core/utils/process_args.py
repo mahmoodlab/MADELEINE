@@ -82,7 +82,7 @@ def get_args():
     
     # convert args namespace to a hash to keep it unique
     args.exp_hash = hashlib.md5(json.dumps({k: str(v) for k, v in vars(args).items()}, sort_keys=True).encode()).hexdigest()
-    args.RESULS_SAVE_PATH = os.path.join(args.ROOT_SAVE_DIR, args.exp_hash)
+    args.RESULS_SAVE_PATH = os.path.join(args.ROOT_SAVE_DIR, "DEBUG_" + args.exp_hash)
     
     print("\033[92m Done \033[0m")
     

@@ -93,7 +93,7 @@ def extract_slide_level_embeddings(args, val_dataloaders, ssl_model):
             
         save_pkl(os.path.join(args.RESULS_SAVE_PATH, f"{dataset_name}.pkl"), curr_results_dict)
 
-def load_checkpoint(args, ssl_model):
+def load_checkpoint(args, ssl_model, path_to_checkpoint=None):
     """
     Loads a checkpoint file and updates the state of the SSL model.
 
@@ -106,7 +106,13 @@ def load_checkpoint(args, ssl_model):
         RuntimeError: If the checkpoint file is corrupted or incompatible with the model.
 
     """
-    state_dict = torch.load(os.path.join(args.RESULS_SAVE_PATH, "model.pt"))
+    # load checkpoint
+    if path_to_checkpoint is not None:
+        state_dict = torch.load(path_to_checkpoint)
+    else:
+        state_dict = torch.load(os.path.join(args.RESULS_SAVE_PATH, "model.pt"))
+    
+    # load weights into model
     try:
         ssl_model.load_state_dict(state_dict)
     except:
@@ -116,6 +122,8 @@ def load_checkpoint(args, ssl_model):
             new_state_dict[name] = v
         ssl_model.load_state_dict(new_state_dict)
         print('Model loaded by removing module in state dict...')
+    
+    return ssl_model
 
 def set_model_precision(precision):
     """

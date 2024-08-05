@@ -1,6 +1,6 @@
 """
 # Usage
-python extract_slide_embeddings_from_checkpoint.py --pretrained ../results_brca/3da61cb11be90a3caaa9158065cb4c8f/
+python extract_slide_embeddings_from_checkpoint.py --pretrained ../results_brca/DEBUG_dfc80197ddc463b89ee1cd2a5d89f421/
 """
 
 
@@ -61,7 +61,7 @@ def restore_model(args, model, state_dict):
             name = k[7:] 
             new_state_dict[name] = v
         model.load_state_dict(new_state_dict, strict=True)
-        
+    
     print("\033[92m Done \033[0m")
         
     return model 
@@ -76,7 +76,6 @@ if __name__ == "__main__":
     # set up MADELEINE model
     model = MADELEINE(
         config=config_from_model,
-        modalities=config_from_model.MODALITIES,
         stain_encoding=config_from_model.add_stain_encoding,
     ).to(DEVICE)
     

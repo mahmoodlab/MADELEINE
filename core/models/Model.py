@@ -1,26 +1,60 @@
-import torch
-from torch import nn
+from typing import Dict, Optional, Union
+from collections import OrderedDict
+
+import torch # type: ignore
+from torch import nn # type: ignore
 from core.models.abmil import BatchedABMIL
 import pdb
-from einops import rearrange
+from einops import rearrange # type: ignore
 import numpy as np
-import torch.nn.functional as F
+import torch.nn.functional as F # type: ignore
 
 # global magic numbers
 HE_POSITION = 0
 
+def create_model(
+    model_cfg: Union[str, Dict],
+    device: Union[str, torch.device] = 'cpu',
+    checkpoint_path: Optional[str] = None,
+    hf_auth_token: Optional[str] = None
+    ):
+    
+   # set up MADELEINE model
+    model = MADELEINE(
+        config=model_cfg,
+        stain_encoding=False,
+    ).to(device)
+    
+    # restore wsi embedder for downstream slide embedding extraction.
+    if checkpoint_path:
+        state_dict =  torch.load(checkpoint_path)
+        sd = list(state_dict.keys())
+        contains_module = any('module' in entry for entry in sd)
+        
+        if not contains_module:
+            model.load_state_dict(state_dict, strict=True)
+        else:
+            new_state_dict = OrderedDict()
+            for k, v in state_dict.items():
+                name = k[7:] 
+                new_state_dict[name] = v
+            model.load_state_dict(new_state_dict, strict=True)
+        print("* Loaded weights successfully!")
+            
+    return model
+
 class MADELEINE(nn.Module):
-    def __init__(self, config, modalities, stain_encoding=False):
+    def __init__(self, config, stain_encoding=False):
 
         super(MADELEINE, self).__init__()
         self.config = config
         self.n_tokens_wsi = config.n_subsamples
-        self.modalities = modalities
+        self.modalities = config.MODALITIES
         self.stain_encoding = stain_encoding
 
         if self.stain_encoding:
             self.stain_encoding_dim = 32
-            self.embedding = nn.Embedding(len(modalities), self.stain_encoding_dim)
+            self.embedding = nn.Embedding(len(self.modalities), self.stain_encoding_dim)
         else:
             self.stain_encoding_dim = 0
 
@@ -65,7 +99,7 @@ class MADELEINE(nn.Module):
     def forward(self, data, device, train=True, n_views = 1, custom_stain_idx=None, return_attention=False):
         
         # unpack and put on device
-        all_wsi_feats = data['feats']
+        all_wsi_feats = data['feats'].to(device)
         
         # store embeds
         all_embeddings = {}

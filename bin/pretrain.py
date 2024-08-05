@@ -72,7 +72,7 @@ if __name__ == "__main__":
     print("\nDone with training\n")
 
     # load the trained wsi_embedder model
-    load_checkpoint(args, ssl_model)
+    ssl_model = load_checkpoint(args, ssl_model)
         
     # get slide-level embeddings of downstream datasets
     extract_slide_level_embeddings(args, val_dataloaders, ssl_model)
