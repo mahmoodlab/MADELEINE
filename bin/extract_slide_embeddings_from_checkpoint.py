@@ -1,6 +1,6 @@
 """
 # Usage
-python extract_slide_embeddings_from_checkpoint.py --overwrite --local_dir ../results_brca/HUB_dfc80197ddc463b89ee1cd2a5d89f421
+python extract_slide_embeddings_from_checkpoint.py --overwrite --local_dir ../results_brca/MADELEINE
 """
 
 # general

@@ -24,17 +24,41 @@ conda activate madeleine
 pip install -r requirements.txt
 ```
 
-## Code 
+## How to use pretrained model
+To download the public checkpoint from HuggingFace and extract slide embeddings on BCNB, run the following command:
 
-The workflow is as follows:
+```
+cd ./bin
+python extract_slide_embeddings_from_checkpoint.py --overwrite --local_dir ../results_brca/MADELEINE
+```
 
-0. Tissue segmentation and patch feature extraction of pre-training and downstream datasets
-1. Train MADELEINE slide embedder model (HE-multi-stain alignment)
-2. Use MADELEINE checkpoint to extract slide embeddings of a downstream dataset
-3. Perform linear probe evaluation using the MADELEINE extracted slide embeddings
+This command downloads the model config and weights to `./results_brca/MADELEINE` and extracts slide embeddings using MADELEINE for the BCNB dataset, saving them at `./results_brca/MADELEINE`.
 
-We now explain how to run each step.
+## Linear probe for molecular status prediction
+To run linear probe using MADELEINE on BCNB molecular status prediction, run:
 
+```
+cd ./bin
+python run_linear_probing.py
+```
+
+The command performs linear probing for `k=1,10,25`, testing the data efficiency of the slide emebddings.
+
+## How do MADELEINE slide emebddings compare with state of the art
+
+MADELEINE slide emebddings are able to outperform various baselines, including GigaPath (Xu et al. *Nature*, 2024), on molecular status prediction:
+
+|            | |   k=1   |      |  |   k=10  |      |  |   k=25  |      |
+|------------|-----|-----|------|------|-----|------|------|-----|------|
+|            | ER  | PR  | HER2 | ER   | PR  | HER2 | ER   | PR  | HER2 |
+| **Mean (CONCH)** | 0.575   | 0.528   | 0.509   | 0.759    | 0.678   | 0.603   | 0.785    | 0.724   | 0.647   |
+| **Mean (GigaPath)**  | 0.568   | 0.523   | 0.501   | 0.718    | 0.657   | 0.588   | 0.762    | 0.71   | 0.637   |
+| **GigaPath (linear probe)**  | 0.555   | 0.514   | 0.498   | 0.691    | 0.636   | 0.577   | 0.741    | 0.689   | 0.618   |
+| **MADELEINE (BRCA)** | **0.664** | **0.537**   | **0.545**   | **0.818**    | **0.756**   | **0.662**   | **0.838**    | **0.791**   | **0.706**   |
+
+MADELEINE-SE is the model trained with stain encodings
+
+## How to train your version of MADELEINE
 
 ## Preprocessing 
 
@@ -67,33 +91,11 @@ cd ./bin
 python run_linear_probing.py
 ```
 
-If you want to load a checkpoint and only extract the slide embeddings, run:
-```
-cd ./bin
-# update file with the checkpoint to extract slide emebddings
-python extract_slide_embeddings_from_checkpoint.py
-```
-
 If you want to extract mean slide embeddings:
 ```
 cd ./bin
 python extract_mean_embs.py
 ``` 
-
-## Results and comparisons
-
-We compare MADELEINE's data efficiency with Mean (CONCH) with GigaPath (Xu et al. *Nature*, 2024)
-
-|            | |   k=1   |      |  |   k=10  |      |  |   k=25  |      |
-|------------|-----|-----|------|------|-----|------|------|-----|------|
-|            | ER  | PR  | HER2 | ER   | PR  | HER2 | ER   | PR  | HER2 |
-| **Mean (CONCH)** | 0.575   | <u>0.528</u>   | 0.509   | 0.759    | 0.678   | 0.603   | <u>0.785</u>    | 0.724   | 0.647   |
-| **Mean (GigaPath)**  | 0.568   | 0.523   | 0.501   | 0.718    | 0.657   | 0.588   | 0.762    | 0.71   | 0.637   |
-| **GigaPath (linear probe)**  | 0.555   | 0.514   | 0.498   | 0.691    | 0.636   | 0.577   | 0.741    | 0.689   | 0.618   |
-| **MADELEINE (BRCA)** | **0.664** | **0.537**   | <u>0.545</u>   | <u>0.818</u>    | <u>0.756</u>   | **0.662**   | **0.838**    | <u>0.791</u>   | **0.706**   |
-| **MADELEINE-SE (BRCA)** | <u>0.659</u>  | 0.524   | **0.552**   | **0.820**    | **0.768**   | <u>0.653</u>   | **0.838**    | **0.794**   | <u>0.696</u>   |
-
-MADELEINE-SE is the model trained with stain encodings
 
 ## Issues 
 
