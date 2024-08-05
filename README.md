@@ -22,9 +22,6 @@ cd MADELEINE
 conda create -n madeleine
 conda activate madeleine
 pip install -r requirements.txt
-
-# install torch with cuda
-pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cu121
 ```
 
 ## Code 
