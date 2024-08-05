@@ -179,12 +179,12 @@ def setup_model(args):
         config=args,
         modalities=args.MODALITIES,
         stain_encoding=args.add_stain_encoding,
-    ).to(DEVICE)
+    )
 
     # put model on gpu(s)
     if args.num_gpus > 1:
         ssl_model = nn.DataParallel(ssl_model, device_ids=list(range(args.num_gpus)))
-    ssl_model.to("cuda:0")
+    ssl_model.to("cuda")
     
     # save model architecture
     print_network(ssl_model, results_dir=args.RESULS_SAVE_PATH)

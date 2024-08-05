@@ -2,7 +2,7 @@
 
 ### Global and Local loss pretraining without stain encodings ###
 python pretrain.py \
-    --data_root_dir /home/guillaume/Documents/ssl/ssl-he-ihc/sample_data/acrobat/coca_vitb/feats_h5 \
+    --data_root_dir ../data/pretrain/ACROBAT/feats_h5 \
     --results_dir results_brca \
     --cohort brca \
     --dataset ACROBAT \
@@ -17,10 +17,10 @@ python pretrain.py \
     --temperature 0.001 \
     --lr 0.0001 \
     --max_epochs 120 \
-    --batch_size 90 \
+    --batch_size 65 \
     --num_gpus 3 \
     --opt adamW \
-    --num_workers 0 \
+    --num_workers 20 \
     --n_subsamples 2048 \
     --activation softmax \
     --warmup_epochs 5 \

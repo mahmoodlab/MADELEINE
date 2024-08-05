@@ -89,8 +89,7 @@ def train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod,
         n_views = 1
         
     ssl_model.train()
-    ssl_model.to(DEVICE)
-    ssl_model, torch_precision = set_model_precision(ssl_model, args.precision)
+    torch_precision = set_model_precision(args.precision)
 
     ep_loss = 0.
     fb_time = 0.
@@ -103,10 +102,6 @@ def train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod,
         
         s_fb = time.time()
         
-        # set data on device and dtype
-        data['feats'] = data['feats'].to(DEVICE).to(torch_precision)
-        data['modality_labels'] = data['modality_labels'].to(torch_precision)
-        
         # clean modality labels to be without HE
         modality_labels = data['modality_labels']
         modality_labels_withoutHE = modality_labels[:, HE_POSITION+1:]
@@ -114,11 +109,13 @@ def train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod,
         # begin forward pass
         optimizer.zero_grad()
              
-        # get model outputs
-        wsi_embs, token_embs = ssl_model(data, device=DEVICE, n_views=n_views)
+        with torch.amp.autocast(device_type="cuda", dtype=torch_precision):
+            
+            # get model outputs
+            wsi_embs, token_embs = ssl_model(data, device=DEVICE, n_views=n_views)
         
-        # calculate losses
-        loss, atleast_two_loss_flag = calculate_losses(args.STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, wsi_embs, token_embs, modality_labels_withoutHE, args)
+            # calculate losses
+            loss, atleast_two_loss_flag = calculate_losses(args.STAINS, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, wsi_embs, token_embs, modality_labels_withoutHE, args)
             
         # get the train embeds to calculate rank
         all_embeds.extend(wsi_embs['HE'][:, WHOLE_VIEW_POSITION, :, 0].detach().to(torch.float32).cpu().numpy())

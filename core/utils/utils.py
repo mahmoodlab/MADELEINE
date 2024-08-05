@@ -44,8 +44,7 @@ def run_inference(config, ssl_model, val_dataloader):
 
     # set model to eval 
     ssl_model.eval()
-    ssl_model.to(DEVICE)
-    ssl_model, torch_precision = set_model_precision(ssl_model, config.precision)
+    torch_precision = set_model_precision(config.precision)
     
     all_embeds = []
     all_slide_ids = []
@@ -53,12 +52,11 @@ def run_inference(config, ssl_model, val_dataloader):
     # do everything without grads 
     with torch.no_grad():
         for data in tqdm(val_dataloader):
-        
-            # unpack data and process
-            data['feats'] = data['feats'].to(DEVICE).to(torch_precision)
             
             # forward
-            wsi_embed = ssl_model(data=data, device=DEVICE, train=False)
+            with torch.amp.autocast(device_type="cuda", dtype=torch_precision):
+                wsi_embed = ssl_model(data=data, device=DEVICE, train=False)
+                
             wsi_embed = wsi_embed['HE']
             
             all_embeds.extend(wsi_embed.squeeze(dim=1).to(torch.float32).detach().cpu().numpy())
@@ -119,7 +117,7 @@ def load_checkpoint(args, ssl_model):
         ssl_model.load_state_dict(new_state_dict)
         print('Model loaded by removing module in state dict...')
 
-def set_model_precision(model, precision):
+def set_model_precision(precision):
     """
     Sets the precision of the model to the specified precision.
 
@@ -136,9 +134,10 @@ def set_model_precision(model, precision):
         torch_precision = torch.float32
     elif precision == 'bfloat16':
         torch_precision = torch.bfloat16
-    model = model.to(torch_precision)
+    else:
+        raise ValueError(f"Invalid precision: {precision}")
     
-    return model, torch_precision
+    return torch_precision
 
 
 def set_deterministic_mode(SEED, disable_cudnn=False):

@@ -52,10 +52,13 @@ bash ../scripts/launch_pretrain_withoutStainEncodings.sh
 
 # launch pretraining with stain encodings
 bash ../scripts/launch_pretrain_withStainEncodings.sh
+
+# launch both experiments
+bash ../scripts/master.sh
 ```
 NOTE: The pretrain script by default extracts the slide emebddings of the BCNB dataset used for downstream evaluation.
 
-TIP: place the data directory on SSD for faster I/O and training. We use 3x24GB 3090Ti for training.
+TIP: place the data directory on SSD for faster I/O and training. We use 3x24GB 3090Ti for training and it takes ~1 h to train MADELEINE.
 
 ## Evaluate MADELEINE on BCNB molecular status prediction
 
@@ -73,6 +76,10 @@ cd ./bin
 # update file with the checkpoint to extract slide emebddings
 python extract_slide_embeddings_from_checkpoint.py
 ```
+
+## Results and comparisons
+
+TODO. Compare with mean (conch), abmil, gigapath (mean), linear probe, ours, ours-se
 
 ## Issues 
 

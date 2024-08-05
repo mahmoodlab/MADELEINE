@@ -17,10 +17,10 @@ python pretrain.py \
     --temperature 0.001 \
     --lr 0.0001 \
     --max_epochs 120 \
-    --batch_size 90 \
+    --batch_size 65 \
     --num_gpus 3 \
     --opt adamW \
-    --num_workers 0 \
+    --num_workers 20 \
     --n_subsamples 2048 \
     --activation softmax \
     --warmup_epochs 5 \
