@@ -139,7 +139,6 @@ def train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod,
             
         if (b_idx % 3) == 0:
             print(f"Loss for batch: {b_idx} = {loss:.3f}")
-            break
             
         ep_loss += loss.item()
         

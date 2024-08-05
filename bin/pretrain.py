@@ -68,10 +68,6 @@ if __name__ == "__main__":
             best_rank = train_rank
             torch.save(ssl_model.state_dict(), os.path.join(args.RESULS_SAVE_PATH, "model.pt"))
             print()
-        
-        # HACK
-        torch.save(ssl_model.state_dict(), os.path.join(args.RESULS_SAVE_PATH, "model.pt"))
-        break
     
     print("\nDone with training\n")
 
