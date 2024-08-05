@@ -77,9 +77,26 @@ cd ./bin
 python extract_slide_embeddings_from_checkpoint.py
 ```
 
+If you want to extract mean slide embeddings:
+```
+cd ./bin
+python extract_mean_embs.py
+``` 
+
 ## Results and comparisons
 
-TODO. Compare with mean (conch), abmil, gigapath (mean), linear probe, ours, ours-se
+We compare MADELEINE's data efficiency with Mean (CONCH) with GigaPath (Xu et al. *Nature*, 2024)
+
+|            | |   k=1   |      |  |   k=10  |      |  |   k=25  |      |
+|------------|-----|-----|------|------|-----|------|------|-----|------|
+|            | ER  | PR  | HER2 | ER   | PR  | HER2 | ER   | PR  | HER2 |
+| **Mean (CONCH)** | 0.575   | <u>0.528</u>   | 0.509   | 0.759    | 0.678   | 0.603   | <u>0.785</u>    | 0.724   | 0.647   |
+| **Mean (GigaPath)**  | 0.568   | 0.523   | 0.501   | 0.718    | 0.657   | 0.588   | 0.762    | 0.71   | 0.637   |
+| **GigaPath (linear probe)**  | 0.555   | 0.514   | 0.498   | 0.691    | 0.636   | 0.577   | 0.741    | 0.689   | 0.618   |
+| **MADELEINE (BRCA)** | **0.664** | **0.537**   | <u>0.545</u>   | <u>0.818</u>    | <u>0.756</u>   | **0.662**   | **0.838**    | <u>0.791</u>   | **0.706**   |
+| **MADELEINE-SE (BRCA)** | <u>0.659</u>  | 0.524   | **0.552**   | **0.820**    | **0.768**   | <u>0.653</u>   | **0.838**    | **0.794**   | <u>0.696</u>   |
+
+MADELEINE-SE is the model trained with stain encodings
 
 ## Issues 
 

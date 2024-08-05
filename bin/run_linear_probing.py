@@ -40,7 +40,21 @@ def calculate_metrics(y_true, y_pred, pred_scores):
 
 
 def load_and_split(labels, embedding_path, study, k=1, normalize=False):
-
+    """
+    Load embeddings from a file, split them into train and test sets, and return the split data.
+    Parameters:
+    - labels (DataFrame): DataFrame containing slide labels.
+    - embedding_path (str): Path to the file containing embeddings.
+    - study (str): Column name in the labels DataFrame representing the study.
+    - k (int, optional): Number of samples to select per class for training. Defaults to 1.
+    - normalize (bool, optional): Whether to normalize the embeddings. Defaults to False.
+    Returns:
+    - train_embeddings (Tensor): Tensor containing the training embeddings.
+    - train_labels (Tensor): Tensor containing the training labels.
+    - test_embeddings (Tensor): Tensor containing the test embeddings.
+    - test_labels (Tensor): Tensor containing the test labels.
+    """
+    
     # 1. load embeddings as dict where key is slide ID 
     file = open(embedding_path, 'rb')
     obj = pickle.load(file)
@@ -86,6 +100,18 @@ def load_and_split(labels, embedding_path, study, k=1, normalize=False):
     
 
 def eval_single_task(DATASET_NAME, TASKS, PATH, verbose=True):
+    """
+    Evaluate a single task using logistic regression with linear probing.
+    Args:
+        DATASET_NAME (str): Name of the dataset.
+        TASKS (list): List of tasks to evaluate.
+        PATH (str): Path to the dataset.
+        verbose (bool, optional): Whether to print verbose output. Defaults to True.
+    Raises:
+        NotImplementedError: If the dataset is not implemented.
+    Returns:
+        None
+    """
         
     ALL_K = [1, 10, 25]
   
@@ -179,8 +205,9 @@ if __name__ == "__main__":
 
     # Put your model to eval here
     MODELS = {
-        # 'MADELEINE_without_StainEncoding': "../results_brca/0d9409dce058e1c2d722aaf512a885cc",
-        'MADELEINE_with_StainEncoding': "../results_brca/867b22cf3a3d315f356f267118aaa52b",
+        # 'MADELEINE_without_StainEncoding': "../results_brca/dfc80197ddc463b89ee1cd2a5d89f421",
+        # 'MADELEINE_with_StainEncoding': "../results_brca/867b22cf3a3d315f356f267118aaa52b",
+        "mean" : "../results_brca/mean",
     }
 
     for exp_name, p in MODELS.items():
