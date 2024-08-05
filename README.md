@@ -24,8 +24,12 @@ conda activate madeleine
 pip install -r requirements.txt
 ```
 
-## How to use pretrained model
-To download the public checkpoint from HuggingFace and extract slide embeddings on BCNB, run the following command:
+## Preprocessing 
+
+TODO.
+
+## How to use pretrained MADELEINE slide embedder
+To download the public MADELEINE checkpoint (trained on 10X breast samples) from HuggingFace and extract slide embeddings on Breast Core Needle Biopsy dataset [1], run the following command:
 
 ```
 cd ./bin
@@ -58,11 +62,7 @@ MADELEINE slide emebddings are able to outperform various baselines, including G
 
 MADELEINE-SE is the model trained with stain encodings
 
-## How to train your version of MADELEINE
-
-## Preprocessing 
-
-TODO.
+# How to train your version of MADELEINE
 
 ## Train MADELEINE on Breast tissue using ACROBAT
 ```
@@ -80,22 +80,6 @@ bash ../scripts/master.sh
 NOTE: The pretrain script by default extracts the slide emebddings of the BCNB dataset used for downstream evaluation.
 
 TIP: place the data directory on SSD for faster I/O and training. We use 3x24GB 3090Ti for training and it takes ~1 h to train MADELEINE.
-
-## Evaluate MADELEINE on BCNB molecular status prediction
-
-To evaluate a checkpoint, run:
-
-```
-cd ./bin
-# update file with the checkpoint you want to evaluate
-python run_linear_probing.py
-```
-
-If you want to extract mean slide embeddings:
-```
-cd ./bin
-python extract_mean_embs.py
-``` 
 
 ## Issues 
 
