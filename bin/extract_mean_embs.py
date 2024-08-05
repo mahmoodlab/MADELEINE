@@ -9,7 +9,12 @@ import pdb
 
 
 # datasets 
-DATASETS = ["BCNB"]
+DATASETS = {
+    "BCNB" : {
+        "csv_path" : "../dataset_csv/BCNB/BCNB.csv",
+        "features_path" : "../data/downstream/BCNB/feats_h5"
+    }
+}
 
 if __name__ == "__main__":
     
@@ -20,7 +25,7 @@ if __name__ == "__main__":
         
         print("Extracting mean embeddings for dataset:", dataset)
         
-        path_to_patches = os.path.join(root_path_to_patches, dataset, "feats_h5")
+        path_to_patches = DATASETS[dataset]["features_path"]
         all_files = os.listdir(path_to_patches)
         
         # iterate over all files, open each file, calculate the mean embedding, and store in numpy 

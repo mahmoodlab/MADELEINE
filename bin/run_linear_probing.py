@@ -17,7 +17,9 @@ from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score, roc_auc_
 import pdb
 
 BCNB_BREAST_TASKS = ['er', 'pr', 'her2']
-BREAST_TASKS = {'BCNB': BCNB_BREAST_TASKS}
+BREAST_TASKS = {
+    'BCNB': BCNB_BREAST_TASKS
+    }
 
 
 def calculate_metrics(y_true, y_pred, pred_scores):

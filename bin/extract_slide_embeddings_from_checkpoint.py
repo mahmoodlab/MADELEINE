@@ -16,31 +16,42 @@ from core.utils.utils import  run_inference
 from torch.utils.data import DataLoader # type: ignore
 from core.utils.file_utils import save_pkl
 
+DATASETS = {
+    "BCNB" : {
+        "csv_path" : "../dataset_csv/BCNB/BCNB.csv",
+        "features_path" : "../data/downstream/BCNB/feats_h5"
+    }
+}
+
+
 # define downstream dataset and loader
-def get_downstream_loader():
+def get_downstream_loaders():
     """
     Returns a DataLoader object for downstream processing.
     Returns:
         DataLoader: A DataLoader object that loads data for downstream processing.
     """
-    
-    dataset = SlideDataset(
-        dataset_name = "BCNB",
-        csv_path= "../dataset_csv/BCNB/BCNB.csv",
-        features_path="../data/downstream/BCNB/feats_h5",
-        modalities=["HE"],
-        train=False
-    )
-
-    loader = DataLoader(
-            dataset, 
-            batch_size=1, 
-            shuffle=False, 
-            collate_fn=collate,
-            num_workers=4,
+    all_loaders = {}
+    for d_name in DATASETS:
+        dataset = SlideDataset(
+            dataset_name=d_name,
+            csv_path=DATASETS[d_name]["csv_path"],
+            features_path=DATASETS[d_name]["features_path"],
+            modalities=["HE"],
+            train=False
         )
+
+        loader = DataLoader(
+                dataset, 
+                batch_size=1, 
+                shuffle=False, 
+                collate_fn=collate,
+                num_workers=4,
+            )
+        
+        all_loaders[d_name] = loader
             
-    return loader
+    return all_loaders
 
 if __name__ == "__main__":
 
@@ -57,13 +68,12 @@ if __name__ == "__main__":
     model, precision = create_model_from_pretrained(local_dir, overwrite=overwrite)
 
     # get downstream loader
-    loader = get_downstream_loader()
+    all_loaders = get_downstream_loaders()
 
     # extract slide embeddings
-    results_dict, rank = run_inference(model, loader, torch_precision=precision)
-
-    # save
-    save_pkl(os.path.join(args.local_dir, "BCNB.pkl"), results_dict)
+    for dataset_name, loader in all_loaders.items():
+        results_dict, rank = run_inference(model, loader, torch_precision=precision)
+        save_pkl(os.path.join(args.local_dir, f"{dataset_name}.pkl"), results_dict)
 
 
 
