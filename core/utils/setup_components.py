@@ -3,7 +3,11 @@ import sys
 sys.path.append('../')
 sys.path.append('../../')
 import os
-import wandb # type: ignore
+try:
+    import wandb # type: ignore
+    WANDB_ERROR = False
+except:
+    WANDB_ERROR = True
 import uuid
 import json
 
@@ -99,7 +103,7 @@ def setup():
     print("\033[92m Done \033[0m")
     
     # set up logging 
-    if args.log_ml:
+    if args.log_ml and not WANDB_ERROR:
         set_up_logging(args, args.RESULS_SAVE_PATH)
         
     # all modalities

@@ -6,7 +6,12 @@ sys.path.append('../../')
 import os
 import time
 import torch # type: ignore
-import wandb # type: ignore
+try:
+    import wandb # type: ignore
+    WANDB_ERROR = False
+except:
+    print("wandb not installed")
+    WANDB_ERROR = True
 import pdb
 
 # internal
@@ -51,7 +56,7 @@ if __name__ == "__main__":
         start = time.time()
         ep_loss, train_rank = train_loop(args, loss_fn_interMod, loss_fn_interMod_local, loss_fn_intraMod, ssl_model, epoch, dataloader, optimizer, scheduler_warmup, scheduler)
         
-        if args.log_ml:
+        if args.log_ml and not WANDB_ERROR:
             wandb.log({"train_loss": ep_loss, "train_rank": train_rank})
 
         end = time.time()
