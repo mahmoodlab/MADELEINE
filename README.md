@@ -102,6 +102,9 @@ If you find our work useful in your research, please consider citing:
 }
 ```
 
+## License
+This repository is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license. You are free to download and share the work with proper attribution, but commercial use and modifications are not allowed. Please note that Creative Commons provides this license "as-is" without any warranties or liabilities.
+
 <img src="support/joint_logo.png" width="2048px" align="center" />
 
 

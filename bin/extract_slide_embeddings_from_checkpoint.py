@@ -6,7 +6,7 @@ python extract_slide_embeddings_from_checkpoint.py --overwrite --local_dir ../re
 # general
 import sys; sys.path.append("../")
 
-from core.datasets.dataset import SlideDataset, collate
+from core.datasets.wsi_dataset import SlideDataset, collate
 import argparse
 import os
 

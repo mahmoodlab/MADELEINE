@@ -22,7 +22,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR # type: ignore
 from core.utils.loss import InfoNCE, GOT
 from core.models.Model import MADELEINE
 from core.utils.file_utils import print_network
-from core.datasets.dataset import SlideDataset, collate
+from core.datasets.wsi_dataset import SlideDataset, collate
 from core.utils.process_args import get_args
 from core.datasets.modalities import modality_dicts
 
