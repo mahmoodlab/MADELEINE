@@ -19,7 +19,7 @@ git clone https://github.com/mahmoodlab/MADELEINE
 cd MADELEINE
 
 # Create conda env
-conda create -n madeleine
+conda create --name madeleine python=3.9
 conda activate madeleine
 pip install -r requirements.txt
 ```
