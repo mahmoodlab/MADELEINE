@@ -56,7 +56,6 @@ def extract_patch_coords(wsi, contours_tissue, save_path_hdf5, patch_mag, patch_
     src_pixel_size = get_pixel_size(wsi.img)
     dst_pixel_size = magnification_to_pixel_size(patch_mag)
 
-    
     n_contours = len(contours_tissue)
     print("Total number of contours to process: ", n_contours)
     fp_chunk_size = math.ceil(n_contours * 0.05)
@@ -91,16 +90,15 @@ def process_contour(wsi: WSI, cont, src_pixel_size, dst_pixel_size, patch_size =
     print('Extracted {} coordinates'.format(len(results)))
 
     if len(results)>0:
-        asset_dict = {'coords' :          results}
+        asset_dict = {'coords': results}
         
-
         # Why aren't we giving the real dowsample here?
         attr = {
             'patch_size' :            patch_size, # To be considered...
             'patch_level' :           patch_level,
             'downsample':             level_downsample,
             'custom_downsample':      custom_downsample,
-            'downsampled_level_dim' : level_dimensions,
+            'downsampled_level_dim': level_dimensions,
             'level_dim':              level_downsample,
             'name':                   name,
         }
@@ -111,103 +109,3 @@ def process_contour(wsi: WSI, cont, src_pixel_size, dst_pixel_size, patch_size =
     else:
         return {}, {}
 
-
-def old_process_contour(
-        wsi, cont, contour_holes, patch_level, patch_size = 256, step_size = 256, use_padding=True, top_left=None, bot_right=None):
-
-    start_x, start_y, w, h = cv2.boundingRect(cont)
-
-    # @TODO: to be adapted 
-    patch_downsample = (int(self.level_downsamples[patch_level][0]), int(self.level_downsamples[patch_level][1]))
-    ref_patch_size = (patch_size*patch_downsample[0], patch_size*patch_downsample[1])
-    
-    img_w, img_h = self.level_dim[0]
-    if use_padding:
-        stop_y = start_y+h
-        stop_x = start_x+w
-    else:
-        stop_y = min(start_y+h, img_h-ref_patch_size[1]+1)
-        stop_x = min(start_x+w, img_w-ref_patch_size[0]+1)
-    
-    print("Bounding Box:", start_x, start_y, w, h)
-    print("Contour Area:", cv2.contourArea(cont))
-
-    if bot_right is not None:
-        stop_y = min(bot_right[1], stop_y)
-        stop_x = min(bot_right[0], stop_x)
-    if top_left is not None:
-        start_y = max(top_left[1], start_y)
-        start_x = max(top_left[0], start_x)
-
-    if bot_right is not None or top_left is not None:
-        w, h = stop_x - start_x, stop_y - start_y
-        if w <= 0 or h <= 0:
-            print("Contour is not in specified ROI, skip")
-            return {}, {}
-        else:
-            print("Adjusted Bounding Box:", start_x, start_y, w, h)
-
-    cont_check_fn = IsInContour(contour=cont, patch_size=ref_patch_size[0], center_shift=0.5)
-
-    step_size_x = step_size * patch_downsample[0]
-    step_size_y = step_size * patch_downsample[1]
-
-    x_range = np.arange(start_x, stop_x, step=step_size_x)
-    y_range = np.arange(start_y, stop_y, step=step_size_y)
-    x_coords, y_coords = np.meshgrid(x_range, y_range, indexing='ij')
-    coord_candidates = np.array([x_coords.flatten(), y_coords.flatten()]).transpose()
-
-    num_workers = mp.cpu_count()
-    if num_workers > 4:
-        num_workers = 4
-    pool = mp.Pool(num_workers)
-
-    iterable = [(coord, contour_holes, ref_patch_size[0], cont_check_fn) for coord in coord_candidates]
-    results = pool.starmap(WholeSlideImage.process_coord_candidate, iterable)
-    pool.close()
-    results = np.array([result for result in results if result is not None])
-    
-    print('Extracted {} coordinates'.format(len(results)))
-
-    if len(results)>0:
-        asset_dict = {'coords' :          results}
-        
-        attr = {
-            'patch_size' :            patch_size, # To be considered...
-            'patch_level' :           patch_level,
-            'downsample':             self.level_downsamples[patch_level],
-            'downsampled_level_dim' : tuple(np.array(self.level_dim[patch_level])),
-            'level_dim':              self.level_dim[patch_level],
-            'name':                   self.name,
-        }
-
-        attr_dict = { 'coords' : attr}
-        return asset_dict, attr_dict
-
-    else:
-        return {}, {}
-
-
-# Easy version of 4pt contour checking function - 1 of 4 points need to be in the contour for test to pass
-class IsInContour(object):
-     
-	def __init__(self, contour, patch_size, center_shift=0.5):
-		self.cont = contour
-		self.patch_size = patch_size
-		self.shift = int(patch_size//2*center_shift)
-          
-	def __call__(self, pt): 
-		center = (pt[0]+self.patch_size//2, pt[1]+self.patch_size//2)
-		if self.shift > 0:
-			all_points = [(center[0]-self.shift, center[1]-self.shift),
-						  (center[0]+self.shift, center[1]+self.shift),
-						  (center[0]+self.shift, center[1]-self.shift),
-						  (center[0]-self.shift, center[1]+self.shift)
-						  ]
-		else:
-			all_points = [center]
-		
-		for points in all_points:
-			if cv2.pointPolygonTest(self.cont, tuple(np.array(points).astype(float)), False) >= 0:
-				return 1
-		return 0

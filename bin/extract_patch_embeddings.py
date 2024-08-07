@@ -1,6 +1,6 @@
 """
 # Usage
-python extract_patch_embeddings.py --overwrite --local_dir ../results_brca/MADELEINE -- slide_dir /media/ssd2/bcnb/wsi
+python extract_patch_embeddings.py  --local_dir ../results_brca/MADELEINE --slide_dir ../sample_data/bcnb/
 """
 
 # general
@@ -20,6 +20,8 @@ from core.preprocessing.hest_modules.segmentation import (get_tissue_vis,
 from core.preprocessing.hest_modules.wsi import get_pixel_size, OpenSlideWSI
 from core.preprocessing.patching import extract_patch_coords
 
+import pdb 
+
 EXTENSIONS = ['.svs', '.mrxs', '.tiff', '.tif', '.TIFF', '.ndpi']
 
 def segment(slide_dir, out_dir, patch_mag, patch_size, step_size):
@@ -30,8 +32,9 @@ def segment(slide_dir, out_dir, patch_mag, patch_size, step_size):
 
     # make seg paths 
     seg_path = os.path.join(out_dir, 'segmentation')
-    os.makedirs(seg_path, exist_ok=True)
+    os.makedirs(os.path.join(seg_path, 'pkl'), exist_ok=True)  # QuPath compatibility. 
     os.makedirs(os.path.join(seg_path, 'geojson'), exist_ok=True)  # QuPath compatibility. 
+    os.makedirs(os.path.join(seg_path, 'jpeg'), exist_ok=True)
 
     # make patch paths 
     patch_path = os.path.join(out_dir, 'patches')
@@ -50,7 +53,6 @@ def segment(slide_dir, out_dir, patch_mag, patch_size, step_size):
         # Paul: would be nice to decouple the pixel size from the WSI in order to support more formats
         pixel_size = get_pixel_size(wsi.img)
         gdf_contours = segment_tissue_deep(wsi, pixel_size, batch_size=64)
-        #pdb.set_trace()
 
         # save thumbnail  
         seg_name = fn.replace(extension, '_tissue_mask.jpeg')
@@ -78,10 +80,11 @@ def segment(slide_dir, out_dir, patch_mag, patch_size, step_size):
 
         # extracting patch embeddings 
         patch_emb_name = fn.replace(extension, '_embeddings.h5')
-        # embed_tiles(
-        #     tile_h5_path=os.path.join(patch_path, patch_name),
-        #     embedding_save_path=os.path.join(patch_emb_path, patch_emb_name)
-        # )
+        embed_tiles(
+            wsi=wsi,
+            tile_h5_path=os.path.join(patch_path, patch_name),
+            embedding_save_path=os.path.join(patch_emb_path, patch_emb_name)
+        )
 
     return None
 
@@ -113,7 +116,6 @@ def segment_old(slide_dir, out_dir, patch_mag, patch_size, step_size):
         wsi = openslide.OpenSlide(os.path.join(slide_dir, fn))
         pixel_size = get_pixel_size(wsi)
         gdf_contours = segment_tissue_deep(wsi, pixel_size, batch_size=64)
-        pdb.set_trace()
 
         # save thumbnail  
         seg_name = fn.replace(extension, '_tissue_mask.jpeg')

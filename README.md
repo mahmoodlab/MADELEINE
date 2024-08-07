@@ -39,7 +39,7 @@ python extract_patch_embeddings.py \
 
 ## Extracting MADELEINE slide encoding
 
-You can run MADELEINE slide encoding (trained on 10x breast samples) using the HuggingFace checkpoint with:
+You can run MADELEINE slide encoding (trained on 10x breast samples) using the [HuggingFace]() checkpoint with:
 
 ```
 cd ./bin
@@ -56,17 +56,17 @@ python run_linear_probing.py
 
 BCNB slide embeddings can also be dpwnloaded from [here](). The command performs linear probing for `k=1,10,25`, testing the data efficiency of the slide emebddings.
 
-## MADELEINE slide embeddings against the state-of-the-art?
+## MADELEINE slide embeddings against the state-of-the-art
 
-MADELEINE slide emebddings are able to outperform various baselines, including GigaPath (Xu et al. *Nature*, 2024), on molecular status prediction:
+All models are evaluated using linear probing without hyper-parameter tuning. MADELEINE slide embeddings are able to outperform various baselines, including GigaPath (Xu et al. *Nature*, 2024), on molecular status prediction:
 
 |            | |   k=1   |      |  |   k=10  |      |  |   k=25  |      |
 |------------|-----|-----|------|------|-----|------|------|-----|------|
 |            | ER  | PR  | HER2 | ER   | PR  | HER2 | ER   | PR  | HER2 |
-| **Mean (CONCH)** | 0.575   | 0.528   | 0.509   | 0.759    | 0.678   | 0.603   | 0.785    | 0.724   | 0.647   |
-| **Mean (GigaPath)**  | 0.568   | 0.523   | 0.501   | 0.718    | 0.657   | 0.588   | 0.762    | 0.71   | 0.637   |
-| **GigaPath (linear probe)**  | 0.555   | 0.514   | 0.498   | 0.691    | 0.636   | 0.577   | 0.741    | 0.689   | 0.618   |
-| **MADELEINE (BRCA)** | **0.664** | **0.537**   | **0.545**   | **0.818**    | **0.756**   | **0.662**   | **0.838**    | **0.791**   | **0.706**   |
+| **CONCH (Mean of patchh embs)** | 0.575   | 0.528   | 0.509   | 0.759    | 0.678   | 0.603   | 0.785    | 0.724   | 0.647   |
+| **GigaPath (Mean of patch embs)**  | 0.568   | 0.523   | 0.501   | 0.718    | 0.657   | 0.588   | 0.762    | 0.71   | 0.637   |
+| **GigaPath (slide encoder)**  | 0.555   | 0.514   | 0.498   | 0.691    | 0.636   | 0.577   | 0.741    | 0.689   | 0.618   |
+| **MADELEINE (slide encoder)** | **0.664** | **0.537**   | **0.545**   | **0.818**    | **0.756**   | **0.662**   | **0.838**    | **0.791**   | **0.706**   |
 
 # How to train your version of MADELEINE
 
