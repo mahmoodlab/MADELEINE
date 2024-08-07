@@ -6,7 +6,7 @@ import numpy as np
 import multiprocessing as mp
 
 from core.preprocessing.conch_patch_embedder import save_hdf5
-from core.preprocessing.wsi import get_pixel_size
+from core.preprocessing.hest_modules.wsi import get_pixel_size, WSI
 
 
 def magnification_to_pixel_size(mag, ref_mag=40, ref_px_size=0.25):
@@ -31,7 +31,7 @@ def magnification_to_pixel_size(mag, ref_mag=40, ref_px_size=0.25):
     return pixel_size
 
 
-def extract_patch_coords(wsi, contours_tissue, save_path_hdf5, patch_mag, patch_size=256, step_size=256):
+def extract_patch_coords(wsi, contours_tissue, save_path_hdf5, patch_mag, patch_size=256, step_size=0):
     """
     Patching WSI based on tissue contours and saves them to HDF5.
 
@@ -50,19 +50,24 @@ def extract_patch_coords(wsi, contours_tissue, save_path_hdf5, patch_mag, patch_
         step_size (int, optional): Target step size in pixels between adjacent patches. 
             Defaults to 256, meaning patches are extracted with no overlap.
     """
-    px_size = get_pixel_size(wsi)
-    target_px_size = magnification_to_pixel_size(patch_mag)
-    target_level = wsi.get_best_level_for_downsample(target_px_size / px_size)
+    import pandas as pd
+    import geopandas as gpd
 
+    src_pixel_size = get_pixel_size(wsi.img)
+    dst_pixel_size = magnification_to_pixel_size(patch_mag)
+
+    
     n_contours = len(contours_tissue)
     print("Total number of contours to process: ", n_contours)
     fp_chunk_size = math.ceil(n_contours * 0.05)
     init = True
-    for idx, cont in enumerate(contours_tissue):
+    for idx, row in contours_tissue.iterrows():
         if (idx + 1) % fp_chunk_size == fp_chunk_size:
             print('Processing contour {}/{}'.format(idx, n_contours))
         
-        asset_dict, attr_dict = process_contour(wsi, cont, target_level, patch_size, step_size)
+        cont = gpd.GeoDataFrame(pd.DataFrame(row)[1:].transpose())
+        overlap = int(np.clip(patch_size - step_size, 0, None))
+        asset_dict, attr_dict = process_contour(wsi, cont, src_pixel_size, dst_pixel_size, patch_size, overlap)
         if len(asset_dict) > 0:
             if init:
                 save_hdf5(save_path_hdf5, asset_dict, attr_dict, mode='w')
@@ -72,7 +77,42 @@ def extract_patch_coords(wsi, contours_tissue, save_path_hdf5, patch_mag, patch_
     return None 
 
 
-def process_contour(
+def process_contour(wsi: WSI, cont, src_pixel_size, dst_pixel_size, patch_size = 256, overlap = 0, name='default'):
+
+    patcher = wsi.create_patcher(patch_size, src_pixel_size, dst_pixel_size, overlap=overlap, mask=cont, coords_only=True)
+    results = np.array([[int(coords[0]), int(coords[1])] for coords in patcher])
+    patch_level = patcher.level
+    level_downsample = wsi.level_downsamples()[patcher.level]
+    level_dimensions = wsi.level_dimensions()[patcher.level]
+
+    # extra downsample applied on top of level downsample
+    custom_downsample = patcher.downsample / level_downsample
+    
+    print('Extracted {} coordinates'.format(len(results)))
+
+    if len(results)>0:
+        asset_dict = {'coords' :          results}
+        
+
+        # Why aren't we giving the real dowsample here?
+        attr = {
+            'patch_size' :            patch_size, # To be considered...
+            'patch_level' :           patch_level,
+            'downsample':             level_downsample,
+            'custom_downsample':      custom_downsample,
+            'downsampled_level_dim' : level_dimensions,
+            'level_dim':              level_downsample,
+            'name':                   name,
+        }
+
+        attr_dict = { 'coords' : attr}
+        return asset_dict, attr_dict
+
+    else:
+        return {}, {}
+
+
+def old_process_contour(
         wsi, cont, contour_holes, patch_level, patch_size = 256, step_size = 256, use_padding=True, top_left=None, bot_right=None):
 
     start_x, start_y, w, h = cv2.boundingRect(cont)
