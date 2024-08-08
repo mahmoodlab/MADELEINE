@@ -1,11 +1,16 @@
 from tqdm import tqdm 
 import numpy as np 
 import h5py 
+import os
+from PIL import Image
 
 import torch 
 from torch.utils.data import Dataset
 
 from conch.open_clip_custom import create_model_from_pretrained
+
+# from core.preprocessing.hest_modules.wsi import WSIPatcher
+from core.preprocessing.hest_modules.wsi import OpenSlideWSIPatcher, get_pixel_size
 
 
 def save_hdf5(output_fpath, 
@@ -71,20 +76,37 @@ class TileEmbedder:
 	def __init__(self, 
 				 model_name='conch_ViT-B-16',
 				 model_repo='hf_hub:MahmoodLab/conch',
+				 target_patch_size=256,
+				 target_mag=20,
 				 device='cuda',
-				 precision=torch.float32):
+				 precision=torch.float32,
+				 save_path=None):
 		self.model_name = model_name
 		self.model_repo = model_repo
 		self.device = device
 		self.precision = precision
+		self.save_path = save_path
+		self.target_patch_size = target_patch_size
+		self.target_mag = target_mag
 		self.model, self.img_transforms = self._build_conch_model()
 
 	def _build_conch_model(self):
 		model, eval_transform = create_model_from_pretrained(self.model_name, self.model_repo, force_image_size=224)
 		return model, eval_transform
 
-	def embed_tiles(self, wsi, tile_h5_path, embedding_save_path) -> str:
-		dataset = TileDataset(wsi.img, tile_h5_path, eval_transform=self.img_transforms)
+	def embed_tiles(self, wsi, gdf_contours, fn) -> str:
+
+		# set i/o paths
+		patching_save_path = os.path.join(self.save_path, 'patches', f'{fn}_patches.png')
+		embedding_save_path = os.path.join(self.save_path, 'patch_embeddings', f'{fn}_embeddings.h5')
+
+		dataset = TileDataset(
+			wsi=wsi,
+			gdf_contours=gdf_contours,
+			target_patch_size=self.target_patch_size,
+			target_mag=self.target_mag,
+			eval_transform=self.img_transforms,
+			save_path=patching_save_path)
 		
 		dataloader = torch.utils.data.DataLoader(
 			dataset, 
@@ -111,61 +133,43 @@ class TileEmbedder:
 		return embedding_save_path
 
 
-class NEWTileDataset(Dataset):
-	def __init__(self, wsi, coords_h5_fpath, eval_transform=None):
+class TileDataset(Dataset):
+	def __init__(self, wsi, gdf_contours, target_patch_size, target_mag, eval_transform, save_path=None):
 		self.wsi = wsi
-		self.coords_h5_fpath = coords_h5_fpath
+		self.gdf_contours = gdf_contours
 		self.eval_transform = eval_transform
-		self._load_coords()
 
-		fishing_rod_downsample = self.target_patch_size / self.patch_size
-		self.patcher = WSIPatcher(self.target_patch_size, fishing_rod_downsample, 1, custom_coords=self.coords)
+		self.patcher = OpenSlideWSIPatcher(
+            wsi=wsi,
+            patch_size=target_patch_size,
+            src_pixel_size=get_pixel_size(wsi.img),
+            dst_pixel_size=self.mag_to_px_size(target_mag),
+            mask=gdf_contours,
+            coords_only=False,
+        )
+		self.patcher.save_visualization(path=save_path)
 
-	def _load_coords(self):
-		with h5py.File(self.coords_h5_fpath, "r") as f:
-			self.attr_dict = {k: dict(f[k].attrs) for k in f.keys() if len(f[k].attrs) > 0}
-			self.coords = f['coords'][:]
-			self.patch_size = f['coords'].attrs['patch_size']
-			self.custom_downsample = f['coords'].attrs['custom_downsample']
-			self.target_patch_size = int(self.patch_size) // int(self.custom_downsample) if self.custom_downsample > 1 else self.patch_size
+	@staticmethod
+	def mag_to_px_size(mag):
+		if mag == 5: return 2.0
+		if mag == 10: return 1.0
+		if mag == 20: return 0.5
+		if mag == 40: return 0.25
+		else: raise ValueError('Magnification should be in [5, 10, 20, 40].')
+
+	# def _load_coords(self):
+	# 	with h5py.File(self.coords_h5_fpath, "r") as f:
+	# 		self.attr_dict = {k: dict(f[k].attrs) for k in f.keys() if len(f[k].attrs) > 0}
+	# 		self.coords = f['coords'][:]
+	# 		self.patch_size = f['coords'].attrs['patch_size']
+	# 		self.custom_downsample = f['coords'].attrs['custom_downsample']
+	# 		self.target_patch_size = int(self.patch_size) // int(self.custom_downsample) if self.custom_downsample > 1 else self.patch_size
 
 	def __len__(self):
 		return len(self.patcher)
 
 	def __getitem__(self, idx):
-		img = patcher[idx]
+		img, x, y = self.patcher[idx]
+		img = Image.fromarray(img, 'RGB')
 		img = self.eval_transform(img).unsqueeze(dim=0)
-		return img, coord
-
-
-class TileDataset(Dataset):
-	def __init__(self, wsi, coords_h5_fpath, eval_transform=None):
-		self.wsi = wsi
-		self.coords_h5_fpath = coords_h5_fpath
-		self.eval_transform = eval_transform
-		self._load_coords()
-
-	def _load_coords(self):
-		with h5py.File(self.coords_h5_fpath, "r") as f:
-			self.attr_dict = {k: dict(f[k].attrs) for k in f.keys() if len(f[k].attrs) > 0}
-			self.coords = f['coords'][:]
-			self.patch_level = f['coords'].attrs['patch_level']
-			self.patch_size = f['coords'].attrs['patch_size']
-			self.length = len(self.coords)
-			self.custom_downsample = f['coords'].attrs['custom_downsample']
-			self.target_patch_size = int(self.patch_size) // int(self.custom_downsample) if self.custom_downsample > 1 else self.patch_size
-
-	def __len__(self):
-		return self.length
-
-	def read_region(self, coord):
-		img = self.wsi.read_region(coord, self.patch_level, (self.patch_size, self.patch_size)).convert('RGB')
-		if self.custom_downsample > 1:
-			img = img.resize((self.target_patch_size,)*2)
-		return img
-
-	def __getitem__(self, idx):
-		coord = self.coords[idx]
-		img = self.read_region(coord)
-		img = self.eval_transform(img).unsqueeze(dim=0)
-		return img, coord
+		return img, (x, y)
