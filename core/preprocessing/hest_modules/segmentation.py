@@ -14,163 +14,142 @@ from geopandas import gpd
 from huggingface_hub import snapshot_download
 from PIL import Image
 from shapely import Polygon
-
-from core.preprocessing.hest_modules.wsi import WSI, WSIPatcher, wsi_factory
-
-try:
-    import openslide
-except Exception:
-    print("Couldn't import openslide, verify that openslide is installed on your system, https://openslide.org/download/")
+import openslide
 from tqdm import tqdm
+from pathlib import Path
+
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from torchvision import transforms
+
+from core.preprocessing.hest_modules.wsi import WSI, wsi_factory
+from .SegDataset import SegWSIDataset
 
 
 def get_path_relative(file, path) -> str:
     curr_dir = os.path.dirname(os.path.abspath(file))
     return os.path.join(curr_dir, path)
 
-def segment_tissue_deep(
-    wsi: Union[np.ndarray, openslide.OpenSlide, CuImage, WSI], # type: ignore
-    pixel_size: float,
-    fast_mode=False,
-    dst_pixel_size=1,
-    patch_size_um=512,
-    model_name='deeplabv3_seg_v4.ckpt',
-    batch_size=8,
-    auto_download=True,
-    num_workers=8,
-    save_path=None,
-    save_bn=None,
-) -> gpd.GeoDataFrame:
-    """ Segment the tissue using a DeepLabV3 model
+def make_valid(polygon):
+    for i in [0, 0.1, -0.1, 0.2]:
+        new_polygon = polygon.buffer(i)
+        if isinstance(new_polygon, Polygon) and new_polygon.is_valid:
+            return new_polygon
+    raise Exception("Failed to make a valid polygon")
+    
 
-    Args:
-        wsi (Union[np.ndarray, openslide.OpenSlide, CuImage, WSI]): wsi
-        pixel_size (float): pixel size in um/px for the wsi
-        fast_mode (bool, optional): in fast mode the inference is done at 2 um/px instead of 1 um/px, 
-            note that the inference pixel size is overwritten by the `target_pxl_size` argument if != 1. Defaults to False.
-        dst_pixel_size (int, optional): patches are scaled to this pixel size in um/px for inference. Defaults to 1.
-        patch_size_um (int, optional): patch size in um. Defaults to 512.
-        model_name (str, optional): model name in `HEST/models` dir. Defaults to 'deeplabv3_seg_v4.ckpt'.
-        batch_size (int, optional): batch size for inference. Defaults to 8.
-        auto_download (bool, optional): whenever to download the model weights automatically if not found. Defaults to True.
-        num_workers (int, optional): number of workers for the dataloader during inference. Defaults to 8.
-        save_path (str, optional): Base save path. If not None, will save contours as geojson, pkl and verlay. Defaults to None. 
-        save_bn (str, optional): Case/Slide ID. If not None, will save contours as geojson, pkl and verlay. Defaults to None. 
-
-    Returns:
-        gpd.GeoDataFrame: a geodataframe of the tissue contours, contains a column `tissue_id` indicating to which tissue the contour belongs to
-    """
-    import torch
-    from torch import nn
-    from torch.utils.data import DataLoader
-    from torchvision import transforms
-
-    from .SegDataset import SegWSIDataset
+class TissueSegmenter:
+    def __init__(self, 
+                 model_name='deeplabv3_seg_v4.ckpt',
+                 batch_size=8,
+                 auto_download=True,
+                 num_workers=8,
+                 save_path=None):
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self.auto_download = auto_download
+        self.num_workers = num_workers
+        self.save_path = save_path
+        self.model = self._load_model()
     
-    src_pixel_size = pixel_size
-    
-    if fast_mode and dst_pixel_size == 1:
-        dst_pixel_size = 2
-    
-    patch_size_deeplab = 512
-    
-    scale = src_pixel_size / dst_pixel_size
-    patch_size_src = round(patch_size_um / scale)
-    wsi = wsi_factory(wsi)
-    
-    weights_path = get_path_relative(__file__, f'../../../models/{model_name}')
-    
-    patcher = wsi.create_patcher(patch_size_deeplab, src_pixel_size, dst_pixel_size)
+    def _load_model(self):
+        model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50')
+        model.classifier[4] = nn.Conv2d(
+            in_channels=256,
+            out_channels=2,
+            kernel_size=1,
+            stride=1
+        )
         
-    eval_transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-    dataset = SegWSIDataset(patcher, eval_transforms)
-    dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
-    model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50')
-    model.classifier[4] = nn.Conv2d(
-        in_channels=256,
-        out_channels=2,
-        kernel_size=1,
-        stride=1
-    )
-    
-    if auto_download:
-        model_dir = get_path_relative(__file__, f'../../../models')
-        snapshot_download(repo_id="MahmoodLab/hest-tissue-seg", repo_type='model', local_dir=model_dir, allow_patterns=model_name)
-    
-    if torch.cuda.is_available():
-        checkpoint = torch.load(weights_path)
-    else:
-        checkpoint = torch.load(weights_path, map_location=torch.device('cpu'))
+        if self.auto_download:
+            model_dir = Path(__file__).resolve().parents[3] / 'models'
+            snapshot_download(repo_id="MahmoodLab/hest-tissue-seg", repo_type='model', local_dir=model_dir, allow_patterns=self.model_name)
         
-    new_state_dict = {}
-    for key in checkpoint['state_dict']:
-        if 'aux' in key:
-            continue
-        new_key = key.replace('model.', '')
-        new_state_dict[new_key] = checkpoint['state_dict'][key]
-    model.load_state_dict(new_state_dict)
-    
-    if torch.cuda.is_available():        
-        model.cuda()
-    
-    model.eval()
-    
-    cols, rows = patcher.get_cols_rows()
-    width, height = patch_size_deeplab * cols, patch_size_deeplab * rows
-    stitched_img = np.zeros((height, width), dtype=np.uint8)
-    src_to_deeplab_scale = patch_size_deeplab / patch_size_src
-    
-    with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.float16):
+        weights_path = model_dir / self.model_name
         
-        for batch in tqdm(dataloader, total=len(dataloader)):
-            
-            # coords are top left coords of patch
-            imgs, coords = batch
-            if torch.cuda.is_available(): 
-                imgs = imgs.cuda()
-            masks = model(imgs)['out']
-            preds = masks.argmax(1).to(torch.uint8).detach()
-            
-            torch.cuda.synchronize()
-
-            preds = preds.cpu().numpy()
-            coords = np.column_stack((coords[0], coords[1]))
-            
-            # stitch the patches
-            for i in range(preds.shape[0]):
-                pred = preds[i]
-                coord = coords[i]
-                x, y = round(coord[0] * src_to_deeplab_scale), round(coord[1] * src_to_deeplab_scale)
-                 
-                y_end = min(y+patch_size_deeplab, height)
-                x_end = min(x+patch_size_deeplab, width)
-                stitched_img[y:y_end, x:x_end] += pred[:y_end-y, :x_end-x]
-            
+        if torch.cuda.is_available():
+            checkpoint = torch.load(weights_path, weights_only=False)
+        else:
+            checkpoint = torch.load(weights_path, map_location=torch.device('cpu'), weights_only=False)
         
-    mask = (stitched_img > 0).astype(np.uint8)
+        new_state_dict = {}
+        for key in checkpoint['state_dict']:
+            if 'aux' in key:
+                continue
+            new_key = key.replace('model.', '')
+            new_state_dict[new_key] = checkpoint['state_dict'][key]
+        model.load_state_dict(new_state_dict)
         
-    gdf_contours = mask_to_gdf(mask, max_nb_holes=5, pixel_size=src_pixel_size, contour_scale=1 / src_to_deeplab_scale)
-    
-    if save_path is not None and save_bn is not None:
+        if torch.cuda.is_available():        
+            model.cuda()
+        
+        model.eval()
+        return model
 
-        os.makedirs(os.path.join(save_path, 'pkl'), exist_ok=True)  # QuPath compatibility. 
-        os.makedirs(os.path.join(save_path, 'geojson'), exist_ok=True)  # QuPath compatibility. 
-        os.makedirs(os.path.join(save_path, 'jpeg'), exist_ok=True)
+    def segment_tissue(self,
+                       wsi: Union[np.ndarray, openslide.OpenSlide, WSI],
+                       pixel_size: float,
+                       save_bn: str=None, 
+                       fast_mode=False,
+                       dst_pixel_size=1,
+                       patch_size_um=512) -> gpd.GeoDataFrame:
+        src_pixel_size = pixel_size
 
-        # save thumbnail  
-        seg_name = save_bn + '_tissue_mask.jpeg'
-        get_tissue_vis(wsi, gdf_contours).save(os.path.join(save_path, 'jpeg', seg_name))
+        if fast_mode and dst_pixel_size == 1:
+            dst_pixel_size = 2
 
-        # save as geojson 
-        seg_name = save_bn + '_tissue_mask.geojson'
-        gdf_contours.to_file(os.path.join(save_path, 'geojson', seg_name), driver="GeoJSON")
+        patch_size_deeplab = 512
+        scale = src_pixel_size / dst_pixel_size
+        patch_size_src = round(patch_size_um / scale)
+        wsi = wsi_factory(wsi)
 
-        # save as pickle 
-        seg_name = save_bn + '_tissue_mask.pkl'
-        with open(os.path.join(save_path, 'pkl', seg_name), "wb") as f:
-            pickle.dump(gdf_contours, f)
+        patcher = wsi.create_patcher(patch_size_deeplab, src_pixel_size, dst_pixel_size)
 
-    return gdf_contours
+        eval_transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+        dataset = SegWSIDataset(patcher, eval_transforms)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, num_workers=self.num_workers)
+
+        cols, rows = patcher.get_cols_rows()
+        width, height = patch_size_deeplab * cols, patch_size_deeplab * rows
+        stitched_img = np.zeros((height, width), dtype=np.uint8)
+        src_to_deeplab_scale = patch_size_deeplab / patch_size_src
+
+        with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.float16):
+            for batch in tqdm(dataloader, total=len(dataloader)):
+                imgs, coords = batch
+                if torch.cuda.is_available(): 
+                    imgs = imgs.cuda()
+                masks = self.model(imgs)['out']
+                preds = masks.argmax(1).to(torch.uint8).detach()
+                torch.cuda.synchronize()
+                preds = preds.cpu().numpy()
+                coords = np.column_stack((coords[0], coords[1]))
+
+                for i in range(preds.shape[0]):
+                    pred = preds[i]
+                    coord = coords[i]
+                    x, y = round(coord[0] * src_to_deeplab_scale), round(coord[1] * src_to_deeplab_scale)
+                    y_end = min(y + patch_size_deeplab, height)
+                    x_end = min(x + patch_size_deeplab, width)
+                    stitched_img[y:y_end, x:x_end] += pred[:y_end-y, :x_end-x]
+
+        mask = (stitched_img > 0).astype(np.uint8)
+        gdf_contours = mask_to_gdf(mask, max_nb_holes=5, pixel_size=src_pixel_size, contour_scale=1 / src_to_deeplab_scale)
+
+        if self.save_path is not None and save_bn is not None:
+            os.makedirs(os.path.join(self.save_path, 'pkl'), exist_ok=True)
+            os.makedirs(os.path.join(self.save_path, 'geojson'), exist_ok=True)
+            os.makedirs(os.path.join(self.save_path, 'jpeg'), exist_ok=True)
+            seg_name = save_bn + '_tissue_mask.jpeg'
+            get_tissue_vis(wsi, gdf_contours).save(os.path.join(self.save_path, 'jpeg', seg_name))
+            seg_name = save_bn + '_tissue_mask.geojson'
+            gdf_contours.to_file(os.path.join(self.save_path, 'geojson', seg_name), driver="GeoJSON")
+            seg_name = save_bn + '_tissue_mask.pkl'
+            with open(os.path.join(self.save_path, 'pkl', seg_name), "wb") as f:
+                pickle.dump(gdf_contours, f)
+
+        return gdf_contours
 
 
 def save_pkl(filename, save_object):
@@ -203,21 +182,6 @@ def mask_rgb(rgb: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return np.clip(masked_image, a_min=0, a_max=255)
 
 
-def keep_largest_area(mask: np.ndarray) -> np.ndarray:
-    label_image, num_labels = sk_measure.label(mask, background=0, return_num=True)
-    largest_label = 0
-    largest_area = 0
-    for label in range(1, num_labels + 1):
-        area = np.sum(label_image == label)
-        if area > largest_area:
-            largest_label = label
-            largest_area = area
-    largest_mask = np.zeros_like(mask, dtype=bool)
-    largest_mask[label_image == largest_label] = True
-    mask[~largest_mask] = 0
-    return mask
-
-
 def contours_to_img(
     contours: gpd.GeoDataFrame, 
     img: np.ndarray, 
@@ -247,7 +211,7 @@ def contours_to_img(
 
 
 def get_tissue_vis(
-            img: Union[np.ndarray, openslide.OpenSlide, CuImage, WSI],
+            img: Union[np.ndarray, openslide.OpenSlide, WSI],
             tissue_contours: gpd.GeoDataFrame,
             line_color=(0, 255, 0),
             line_thickness=5,
@@ -288,56 +252,6 @@ def get_tissue_vis(
 
         return Image.fromarray(img)
     
-
-def apply_otsu_thresholding(tile: np.ndarray) -> np.ndarray:
-    """Generate a binary tissue mask by using Otsu thresholding
-
-    Args:
-        tile (np.ndarray): Tile with tissue with shape (height, width, 3)
-
-    Returns:
-        np.ndarray: Binary mask with shape (height, width)
-    """
-    import skimage.color as sk_color
-    import skimage.filters as sk_filters
-    import skimage.measure as sk_measure
-    import skimage.morphology as sk_morphology
-
-    # this is to remove the black border padding in some images
-    black_pixels = np.all(tile == [0, 0, 0], axis=-1)
-    tile[black_pixels] = [255, 255, 255] 
-
-
-    hsv_img = cv2.cvtColor(tile.astype(np.uint8), cv2.COLOR_RGB2HSV)
-    gray_mask = cv2.inRange(hsv_img, (0, 0, 70), (180, 10, 255))
-    black_mask = cv2.inRange(hsv_img, (0, 0, 0), (180, 255, 85))
-    # Set all grey/black pixels to white
-    full_tile_bg = np.copy(tile)
-    full_tile_bg[np.where(gray_mask | black_mask)] = 255
-
-    # apply otsu mask first time for removing larger artifacts
-    masked_image_gray = 255 * sk_color.rgb2gray(full_tile_bg)
-    thresh = sk_filters.threshold_otsu(masked_image_gray)
-    otsu_masking = masked_image_gray < thresh
-    # improving mask
-    otsu_masking = sk_morphology.remove_small_objects(otsu_masking, 60)
-    #otsu_masking = sk_morphology.dilation(otsu_masking, sk_morphology.square(12))
-    #otsu_masking = sk_morphology.closing(otsu_masking, sk_morphology.square(5))
-    #otsu_masking = sk_morphology.remove_small_holes(otsu_masking, 250)
-    tile = mask_rgb(tile, otsu_masking).astype(np.uint8)
-
-    # apply otsu mask second time for removing small artifacts
-    masked_image_gray = 255 * sk_color.rgb2gray(tile)
-    thresh = sk_filters.threshold_otsu(masked_image_gray)
-    otsu_masking = masked_image_gray < thresh
-    otsu_masking = sk_morphology.remove_small_holes(otsu_masking, 5000)
-    otsu_thr = ~otsu_masking
-    otsu_thr = otsu_thr.astype(np.uint8)
-
-    #Image.fromarray(np.expand_dims(otsu_thr, axis=-1) * np.array([255, 255, 255]).astype(np.uint8)).save('otsu_thr.png')
-
-    return otsu_thr
-
 
 def filter_contours(contours, hierarchy, filter_params, scale, pixel_size):
     """
@@ -451,6 +365,8 @@ def mask_to_gdf(mask: np.ndarray, keep_ids = [], exclude_ids=[], max_nb_holes=0,
     for i in contour_ids:
         holes = [contours_holes[i][j].squeeze(1) for j in range(len(contours_holes[i]))] if len(contours_holes[i]) > 0 else None
         polygon = Polygon(contours_tissue[i].squeeze(1), holes=holes)
+        if not polygon.is_valid:
+            polygon = make_valid(polygon)
         polygons.append(polygon)
     
     gdf_contours = gpd.GeoDataFrame(pd.DataFrame(tissue_ids, columns=['tissue_id']), geometry=polygons)
