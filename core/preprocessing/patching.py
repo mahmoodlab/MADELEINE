@@ -1,9 +1,5 @@
-import os 
-import time 
 import math 
-import cv2
 import numpy as np
-import multiprocessing as mp
 
 from core.preprocessing.conch_patch_embedder import save_hdf5
 from core.preprocessing.hest_modules.wsi import get_pixel_size, WSI
@@ -57,14 +53,14 @@ def extract_patch_coords(wsi, contours_tissue, save_path_hdf5, patch_mag, patch_
     dst_pixel_size = magnification_to_pixel_size(patch_mag)
 
     n_contours = len(contours_tissue)
-    print("Total number of contours to process: ", n_contours)
+    # print("Total number of contours to process: ", n_contours)
     fp_chunk_size = math.ceil(n_contours * 0.05)
     init = True
     for idx, row in contours_tissue.iterrows():
         if (idx + 1) % fp_chunk_size == fp_chunk_size:
             print('Processing contour {}/{}'.format(idx, n_contours))
         
-        cont = gpd.GeoDataFrame(pd.DataFrame(row)[1:].transpose())
+        cont = contours_tissue.iloc[[idx]]
         overlap = int(np.clip(patch_size - step_size, 0, None))
         asset_dict, attr_dict = process_contour(wsi, cont, src_pixel_size, dst_pixel_size, patch_size, overlap)
         if len(asset_dict) > 0:
@@ -87,7 +83,7 @@ def process_contour(wsi: WSI, cont, src_pixel_size, dst_pixel_size, patch_size =
     # extra downsample applied on top of level downsample
     custom_downsample = patcher.downsample / level_downsample
     
-    print('Extracted {} coordinates'.format(len(results)))
+    # print('Extracted {} coordinates'.format(len(results)))
 
     if len(results)>0:
         asset_dict = {'coords': results}

@@ -1,19 +1,11 @@
 from tqdm import tqdm 
 import numpy as np 
 import h5py 
-from PIL import Image 
-import cv2
+
 import torch 
 from torch.utils.data import Dataset
 
 from conch.open_clip_custom import create_model_from_pretrained
-
-import pdb 
-
-
-def build_conch_model():
-	model, eval_transform = create_model_from_pretrained('conch_ViT-B-16', "hf_hub:MahmoodLab/conch", force_image_size=224)
-	return model, eval_transform
 
 
 def save_hdf5(output_fpath, 
@@ -75,117 +67,105 @@ def collate_features(batch):
 	return features, coords
 
 
-def embed_tiles(
-		wsi, 
-		tile_h5_path,
-		embedding_save_path,
-		device='cuda',
-		precision=torch.float32
-	):
-	"""
-	Extract embeddings from tiles using encoder and save to h5 file
-	"""
+class TileEmbedder:
+	def __init__(self, 
+				 model_name='conch_ViT-B-16',
+				 model_repo='hf_hub:MahmoodLab/conch',
+				 device='cuda',
+				 precision=torch.float32):
+		self.model_name = model_name
+		self.model_repo = model_repo
+		self.device = device
+		self.precision = precision
+		self.model, self.img_transforms = self._build_conch_model()
 
-	model, img_transforms = build_conch_model()
+	def _build_conch_model(self):
+		model, eval_transform = create_model_from_pretrained(self.model_name, self.model_repo, force_image_size=224)
+		return model, eval_transform
 
-	dataset = WSIBagDataset(wsi.img, tile_h5_path, eval_transform=img_transforms)
-	dataloader = torch.utils.data.DataLoader(
-		dataset, 
-		batch_size=64, 
-		shuffle=False,
-		num_workers=8,
-		collate_fn=collate_features,
-	)
-
-	model.to(device)
-	model.eval()
-	for batch_idx, (imgs, coords) in tqdm(enumerate(dataloader), total=len(dataloader)):
-
-		imgs = imgs.to(device)
-		with torch.inference_mode(), torch.cuda.amp.autocast(dtype=precision):
-			embeddings = model.encode_image(imgs, proj_contrast=False, normalize=False)
-		if batch_idx == 0:
-			mode = 'w'
-		else:
-			mode = 'a'
-		asset_dict = {
-			'features': embeddings.cpu().numpy(),
-			'coords': coords,
-			}
-		# asset_dict.update({key: np.array(val) for key, val in batch.items() if key != 'imgs'})
-		save_hdf5(
-			embedding_save_path,
-			mode=mode,
-			asset_dict=asset_dict,
+	def embed_tiles(self, wsi, tile_h5_path, embedding_save_path) -> str:
+		dataset = TileDataset(wsi.img, tile_h5_path, eval_transform=self.img_transforms)
+		
+		dataloader = torch.utils.data.DataLoader(
+			dataset, 
+			batch_size=64, 
+			shuffle=False,
+			num_workers=8,
+			collate_fn=collate_features,
 		)
-	return embedding_save_path 
+
+		self.model.to(self.device)
+		self.model.eval()
+		
+		for batch_idx, (imgs, coords) in tqdm(enumerate(dataloader), total=len(dataloader)):
+			imgs = imgs.to(self.device)
+			with torch.inference_mode(), torch.amp.autocast(dtype=self.precision, device_type=self.device):
+				embeddings = self.model.encode_image(imgs, proj_contrast=False, normalize=False)
+			mode = 'w' if batch_idx == 0 else 'a'
+			asset_dict = {
+				'features': embeddings.cpu().numpy(),
+				'coords': coords,
+			}
+			save_hdf5(embedding_save_path, mode=mode, asset_dict=asset_dict)
+		
+		return embedding_save_path
 
 
-class WSIBagDataset(torch.utils.data.Dataset):
-	def __init__(
-			self, 
-			wsi, 
-			coords_h5_fpath, 
-			eval_transform=None, 
-			verbose=0
-	):
-		"""
-		Args:
-			- slide_fpath (str): Path to WSI.
-			- coords_h5_fpath (string): Path to h5 file containing coordinates.
-			- eval_transform (torchvision.transform): Which Transform to use.
-			- thresh (float): For 4K mode patching only.
-			- verbose (int): Printing attribute information in the coords_h5 file.
-		"""
+class NEWTileDataset(Dataset):
+	def __init__(self, wsi, coords_h5_fpath, eval_transform=None):
 		self.wsi = wsi
 		self.coords_h5_fpath = coords_h5_fpath
 		self.eval_transform = eval_transform
+		self._load_coords()
 
+		fishing_rod_downsample = self.target_patch_size / self.patch_size
+		self.patcher = WSIPatcher(self.target_patch_size, fishing_rod_downsample, 1, custom_coords=self.coords)
+
+	def _load_coords(self):
 		with h5py.File(self.coords_h5_fpath, "r") as f:
-			self.attr_dict = {}
-			for k in f.keys():
-				attrs = dict(f[k].attrs)
-				if len(attrs.keys()) > 0: self.attr_dict[k] = attrs
-			
+			self.attr_dict = {k: dict(f[k].attrs) for k in f.keys() if len(f[k].attrs) > 0}
+			self.coords = f['coords'][:]
+			self.patch_size = f['coords'].attrs['patch_size']
+			self.custom_downsample = f['coords'].attrs['custom_downsample']
+			self.target_patch_size = int(self.patch_size) // int(self.custom_downsample) if self.custom_downsample > 1 else self.patch_size
+
+	def __len__(self):
+		return len(self.patcher)
+
+	def __getitem__(self, idx):
+		img = patcher[idx]
+		img = self.eval_transform(img).unsqueeze(dim=0)
+		return img, coord
+
+
+class TileDataset(Dataset):
+	def __init__(self, wsi, coords_h5_fpath, eval_transform=None):
+		self.wsi = wsi
+		self.coords_h5_fpath = coords_h5_fpath
+		self.eval_transform = eval_transform
+		self._load_coords()
+
+	def _load_coords(self):
+		with h5py.File(self.coords_h5_fpath, "r") as f:
+			self.attr_dict = {k: dict(f[k].attrs) for k in f.keys() if len(f[k].attrs) > 0}
 			self.coords = f['coords'][:]
 			self.patch_level = f['coords'].attrs['patch_level']
 			self.patch_size = f['coords'].attrs['patch_size']
 			self.length = len(self.coords)
-
 			self.custom_downsample = f['coords'].attrs['custom_downsample']
-			if self.custom_downsample > 1:
-				self.target_patch_size = self.patch_size // self.custom_downsample
-			else:
-				self.target_patch_size = self.patch_size
-
-		if verbose:
-			self.summary()
+			self.target_patch_size = int(self.patch_size) // int(self.custom_downsample) if self.custom_downsample > 1 else self.patch_size
 
 	def __len__(self):
 		return self.length
 
-	def summary(self):
-		with h5py.File(self.coords_h5_fpath, "r") as f:
-			print('Coord Attrs:')
-			for k,v in f['coords'].attrs.items():
-				print(f'\t{k}: {v}')
-			print('Feature Extraction Settings')
-			print('\tNum Coords', self.length)
-			print('\tTarget Patch Size: ', self.target_patch_size)
-			print('\tTransformations: ', self.eval_transform)
-
-	def __os_read_region(self, coord):
-		try:
-			img = self.wsi.read_region(coord, self.patch_level, (self.patch_size, self.patch_size)).convert('RGB')
-			if self.custom_downsample > 1:
-				img = img.resize((int(self.patch_size) // int(self.custom_downsample),)*2)
-			return img
-		except:
-			print('Error reading region. Returning white image.')
-			return Image.fromarray(np.ones((self.patch_size, self.patch_size, 3), dtype=np.uint8)*255)
+	def read_region(self, coord):
+		img = self.wsi.read_region(coord, self.patch_level, (self.patch_size, self.patch_size)).convert('RGB')
+		if self.custom_downsample > 1:
+			img = img.resize((self.target_patch_size,)*2)
+		return img
 
 	def __getitem__(self, idx):
 		coord = self.coords[idx]
-		img = self.__os_read_region(coord)
+		img = self.read_region(coord)
 		img = self.eval_transform(img).unsqueeze(dim=0)
 		return img, coord
