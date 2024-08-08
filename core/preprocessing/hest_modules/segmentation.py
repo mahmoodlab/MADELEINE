@@ -234,14 +234,15 @@ def contours_to_img(
         
         for _, row in group.iterrows():
             cont = np.array([[round(x * downsample), round(y * downsample)] for x, y in row.geometry.exterior.coords])
-            holes = np.array([[round(x * downsample), round(y * downsample)] for hole in row.geometry.interiors for x, y in hole.coords])
+            holes = [np.array([[round(x * downsample), round(y * downsample)] for x, y in hole.coords]) for hole in row.geometry.interiors]
         
             draw_cont_fill(image=img, contours=[cont], color=line_color)
+        
+            for hole in holes:
+                draw_cont_fill(image=img, contours=[hole], color=(0, 0, 0))
+
             if draw_contours:
                 draw_cont(image=img, contours=[cont], color=line_color)
-        
-            if len(holes) > 0:
-                draw_cont_fill(image=img, contours=[holes], color=(0, 0, 0))
     return img
 
 
@@ -445,10 +446,10 @@ def mask_to_gdf(mask: np.ndarray, keep_ids = [], exclude_ids=[], max_nb_holes=0,
     else:
         contour_ids = set(np.arange(len(contours_tissue))) - set(exclude_ids)
 
-    tissue_ids = [i for i in contour_ids] + [i for i in contour_ids if len(contours_holes[i]) > 0]
+    tissue_ids = [i for i in contour_ids]
     polygons = []
     for i in contour_ids:
-        holes = contours_holes[i][0].squeeze(1) if len(contours_holes[i]) > 0 else None
+        holes = [contours_holes[i][j].squeeze(1) for j in range(len(contours_holes[i]))] if len(contours_holes[i]) > 0 else None
         polygon = Polygon(contours_tissue[i].squeeze(1), holes=holes)
         polygons.append(polygon)
     
