@@ -37,7 +37,9 @@ def segment_tissue_deep(
     model_name='deeplabv3_seg_v4.ckpt',
     batch_size=8,
     auto_download=True,
-    num_workers=8
+    num_workers=8,
+    save_path=None,
+    save_bn=None,
 ) -> gpd.GeoDataFrame:
     """ Segment the tissue using a DeepLabV3 model
 
@@ -52,6 +54,8 @@ def segment_tissue_deep(
         batch_size (int, optional): batch size for inference. Defaults to 8.
         auto_download (bool, optional): whenever to download the model weights automatically if not found. Defaults to True.
         num_workers (int, optional): number of workers for the dataloader during inference. Defaults to 8.
+        save_path (str, optional): Base save path. If not None, will save contours as geojson, pkl and verlay. Defaults to None. 
+        save_bn (str, optional): Case/Slide ID. If not None, will save contours as geojson, pkl and verlay. Defaults to None. 
 
     Returns:
         gpd.GeoDataFrame: a geodataframe of the tissue contours, contains a column `tissue_id` indicating to which tissue the contour belongs to
@@ -146,7 +150,26 @@ def segment_tissue_deep(
     mask = (stitched_img > 0).astype(np.uint8)
         
     gdf_contours = mask_to_gdf(mask, max_nb_holes=5, pixel_size=src_pixel_size, contour_scale=1 / src_to_deeplab_scale)
-        
+    
+    if save_path is not None and save_bn is not None:
+
+        os.makedirs(os.path.join(save_path, 'pkl'), exist_ok=True)  # QuPath compatibility. 
+        os.makedirs(os.path.join(save_path, 'geojson'), exist_ok=True)  # QuPath compatibility. 
+        os.makedirs(os.path.join(save_path, 'jpeg'), exist_ok=True)
+
+        # save thumbnail  
+        seg_name = save_bn + '_tissue_mask.jpeg'
+        get_tissue_vis(wsi, gdf_contours).save(os.path.join(save_path, 'jpeg', seg_name))
+
+        # save as geojson 
+        seg_name = save_bn + '_tissue_mask.geojson'
+        gdf_contours.to_file(os.path.join(save_path, 'geojson', seg_name), driver="GeoJSON")
+
+        # save as pickle 
+        seg_name = save_bn + '_tissue_mask.pkl'
+        with open(os.path.join(save_path, 'pkl', seg_name), "wb") as f:
+            pickle.dump(gdf_contours, f)
+
     return gdf_contours
 
 
