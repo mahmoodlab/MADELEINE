@@ -6,7 +6,6 @@ python extract_slide_embeddings.py --local_dir ../results/BCNB/
 # general
 import sys; sys.path.append("../")
 
-from core.datasets.dataset import SimpleDataset, simple_collate
 import argparse
 import os
 
@@ -15,6 +14,7 @@ from core.models.factory import create_model_from_pretrained
 from core.utils.utils import  run_inference
 from torch.utils.data import DataLoader 
 from core.utils.file_utils import save_pkl
+from core.datasets.wsi_dataset import SimpleDataset, simple_collate
 
 
 # define downstream dataset and loader
