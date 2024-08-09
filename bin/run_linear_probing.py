@@ -1,12 +1,21 @@
+"""
+Usage:
+
+To run with MADELEINE slide embeddings:
+python run_linear_probing.py --slide_embedding_pkl ../results/BCNB/madeleine_slide_embeddings.pkl  --label_path ../dataset_csv/BCNB/BCNB.csv 
+
+To run with Mean CONCH-derived slide embeddings:
+python run_linear_probing.py --slide_embedding_pkl ../results/BCNB/mean_slide_embeddings.pkl  --label_path ../dataset_csv/BCNB/BCNB.csv 
+"""
+
 # general
-import sys
-sys.path.append('../')
+import sys; sys.path.append('../')
 import pandas as pd
-from core.utils.utils import set_deterministic_mode
-import torch # type: ignore
+import torch 
 import os
 import numpy as np
 import pickle
+import argparse
 
 # eval
 from sklearn.preprocessing import StandardScaler
@@ -14,12 +23,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score, roc_auc_score
 
+# internal
+from core.utils.utils import set_deterministic_mode
+
 import pdb
 
+# Define all tasks here. 
 BCNB_BREAST_TASKS = ['er', 'pr', 'her2']
-BREAST_TASKS = {
-    'BCNB': BCNB_BREAST_TASKS
-    }
 
 
 def calculate_metrics(y_true, y_pred, pred_scores):
@@ -101,30 +111,15 @@ def load_and_split(labels, embedding_path, study, k=1, normalize=False):
     return train_embeddings, train_labels, test_embeddings, test_labels
     
 
-def eval_single_task(DATASET_NAME, TASKS, PATH, verbose=True):
-    """
-    Evaluate a single task using logistic regression with linear probing.
-    Args:
-        DATASET_NAME (str): Name of the dataset.
-        TASKS (list): List of tasks to evaluate.
-        PATH (str): Path to the dataset.
-        verbose (bool, optional): Whether to print verbose output. Defaults to True.
-    Raises:
-        NotImplementedError: If the dataset is not implemented.
-    Returns:
-        None
-    """
-        
+def eval_single_task(embeds_path, label_path, tasks, verbose=True):
+
+    m_name = os.path.splitext(os.path.basename(embeds_path))[0]
+    save_path = os.path.join(os.path.dirname(embeds_path), 'res_linear_probing')
+
     ALL_K = [1, 10, 25]
   
-    if DATASET_NAME == "BCNB":
-        EMBEDS_PATH = os.path.join(PATH, "BCNB.pkl")
-        LABEL_PATH = '../dataset_csv/BCNB/BCNB.csv'
-    else:
-        raise NotImplementedError("Dataset not implemented")
-    
     for k in ALL_K:
-        for task in TASKS:
+        for task in tasks:
             if verbose:
                 print(f"Task {task} and k = {k}...")
             NUM_FOLDS = 10 
@@ -140,13 +135,13 @@ def eval_single_task(DATASET_NAME, TASKS, PATH, verbose=True):
                     print(f"     Going for fold {fold}...")
 
                 # Load and process labels  
-                LABELS = pd.read_csv(LABEL_PATH) 
+                LABELS = pd.read_csv(label_path) 
                 LABELS['slide_id'] = LABELS['slide_id'].astype(str)
                 LABELS = LABELS[LABELS[task] != -1]
                 LABELS = LABELS[['slide_id', task]]
 
                 # Load embeddings, labels and split data 
-                train_features, train_labels, test_features, test_labels = load_and_split(LABELS, EMBEDS_PATH, task, k)
+                train_features, train_labels, test_features, test_labels = load_and_split(LABELS, embeds_path, task, k)
     
                 if verbose:
                     print(f"     Fitting logistic regression on {len(train_features)} slides")
@@ -194,27 +189,31 @@ def eval_single_task(DATASET_NAME, TASKS, PATH, verbose=True):
                 )
             
             # save results for plotting
-            os.makedirs(f'{PATH}/{DATASET_NAME}', exist_ok=True)
-            with open(f'{PATH}/{DATASET_NAME}/{RESULTS_FOLDER}.pickle', 'wb') as handle:
+            os.makedirs(f'{save_path}/{m_name}', exist_ok=True)
+            with open(f'{save_path}/{m_name}/{RESULTS_FOLDER}.pickle', 'wb') as handle:
                 pickle.dump(metrics_store_all, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
 # main 
 if __name__ == "__main__":
 
-    tasks = BREAST_TASKS
-    print("* Evaluating on breast...")
-    print("* All datasets to evaluate on = {}".format(list(tasks.keys())))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--slide_embedding_pkl", type=str, default=None)
+    parser.add_argument("--label_path", type=str, default=None)
+    args = parser.parse_args()
 
-    # Put your model to eval here
-    MODELS = {
-        'MADELEINE': "../results_brca/MADELEINE",
-    }
+    d_name = os.path.splitext(os.path.basename(args.label_path))[0]
+    if d_name == 'BCNB':
+        tasks = BCNB_BREAST_TASKS
+    else:
+        raise NotImplementedError('Feel free to implement additional downstream tasks.')
 
-    for exp_name, p in MODELS.items():
-        for n, t in tasks.items():
-            print('\n* Dataset:', n)
-            eval_single_task(n, t, p, verbose=False)
-            
+    print("* Evaluating on {} status in {}...".format(tasks, d_name))
+    eval_single_task(
+        embeds_path=args.slide_embedding_pkl,
+        label_path=args.label_path,
+        tasks=tasks,
+        verbose=False)
+    
     print()
     print(100*"-")
     print("End of experiment, bye!")

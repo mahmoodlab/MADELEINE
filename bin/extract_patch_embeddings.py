@@ -23,6 +23,11 @@ def process(slide_dir, out_dir, patch_mag, patch_size):
     logger.info(f'Running segmentation, patching, and feature extraction on {len(fnames)} slides.')
 
     # Create necessary directories
+    out_dir = os.path.join(out_dir, 'processing_conch_nWSI_{}_mag_{}x_patchsize_{}'.format(
+        len(fnames),
+        patch_mag,
+        patch_size
+    ))
     seg_path = os.path.join(out_dir, 'segmentation')
     os.makedirs(seg_path, exist_ok=True)
 
@@ -62,15 +67,11 @@ def process(slide_dir, out_dir, patch_mag, patch_size):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--slide_dir", type=str, help="Directory with slides.", default=None)
-    parser.add_argument("--local_dir", type=str, help="Where to save tissue segmentation, patch coords, and patch embeddings.", default='./../results')
+    parser.add_argument("--local_dir", type=str, help="Where to save tissue segmentation, patch coords, and patch embeddings.", default='./../data/downstream')
     parser.add_argument("--patch_mag", type=int, help="Magnification at which patching operates. Default to 10x.", default=10)
     parser.add_argument("--patch_size", type=int, help="Patch size. Default to 256.", default=256)
-    # parser.add_argument("--step_size", type=int, help="Step size when patching. Default to patch size.", default=None)
 
     args = parser.parse_args()
-
-    # if args.step_size is None: 
-    #     args.step_size = args.patch_size
 
     logger.info('Initiate run...')
     process(args.slide_dir, args.local_dir, args.patch_mag, args.patch_size)

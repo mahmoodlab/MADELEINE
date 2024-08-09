@@ -98,7 +98,7 @@ class TileEmbedder:
 
 		# set i/o paths
 		patching_save_path = os.path.join(self.save_path, 'patches', f'{fn}_patches.png')
-		embedding_save_path = os.path.join(self.save_path, 'patch_embeddings', f'{fn}_embeddings.h5')
+		embedding_save_path = os.path.join(self.save_path, 'patch_embeddings', f'{fn}.h5')
 
 		dataset = TileDataset(
 			wsi=wsi,

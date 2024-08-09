@@ -98,3 +98,28 @@ def collate(batch):
             'slide_ids' : slide_ids
         }
 
+
+class SimpleDataset(Dataset):
+    def __init__(self, features_path):
+        """
+        Args:
+            features_path (string): Directory with all the feature files.
+        """
+        self.features_path = features_path
+        self.fnames = os.listdir(self.features_path)
+        self.fnames = [fn for fn in self.fnames if fn.endswith('.h5')]
+
+    def __len__(self):
+        return len(self.fnames)
+    
+    def __getitem__(self, index):
+        curr_h5_path = os.path.join(self.features_path, self.fnames[index])
+        features = load_features(curr_h5_path)
+        slide_id = os.path.splitext(self.fnames[index])[0]
+        return features, slide_id
+
+
+def simple_collate(batch):
+    features, slide_ids = zip(*batch)
+    features_batch = torch.stack(features)
+    return features_batch, list(slide_ids)

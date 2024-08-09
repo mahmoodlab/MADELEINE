@@ -1,7 +1,5 @@
 # general
-import sys
-sys.path.append('../')
-sys.path.append('../../')
+
 import os
 try:
     import wandb # type: ignore

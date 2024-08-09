@@ -31,8 +31,8 @@ We are extracting [CONCH](https://github.com/mahmoodlab/CONCH) features at 10x m
 ```
 cd ./bin
 python extract_patch_embeddings.py \
-    --slide_dir ../sample_data/bcnb/ \
-    --local_dir ../results_brca \
+    --slide_dir <PATH_TO_BCNB_SLIDES> \
+    --local_dir ../results/BCNB \
     --patch_mag 10 \
     --patch_size 256
 ```
@@ -43,7 +43,7 @@ You can run MADELEINE slide encoding (trained on 10x breast samples) using the [
 
 ```
 cd ./bin
-python extract_slide_embeddings_from_checkpoint.py --overwrite --local_dir ../results_brca/
+python extract_slide_embeddings.py --local_dir ../results/BCNB/
 ```
 
 ## Linear probe for molecular status prediction
@@ -51,10 +51,10 @@ To run linear probe using MADELEINE on BCNB molecular status prediction, run:
 
 ```
 cd ./bin
-python run_linear_probing.py
+python run_linear_probing.py --slide_embedding_pkl ../results/BCNB/madeleine_slide_embeddings.pkl  --label_path ../dataset_csv/BCNB/BCNB.csv 
 ```
 
-BCNB slide embeddings can also be dpwnloaded from [here](). The command performs linear probing for `k=1,10,25`, testing the data efficiency of the slide emebddings.
+BCNB slide embeddings can also be downloaded from [here](). The command performs linear probing for `k=1,10,25`, testing the data efficiency of the slide emebddings.
 
 ## MADELEINE slide embeddings against the state-of-the-art
 
