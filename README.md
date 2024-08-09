@@ -39,7 +39,7 @@ python extract_patch_embeddings.py \
 
 ## Extracting MADELEINE slide encoding
 
-You can run MADELEINE slide encoding (trained on 10x breast samples) using the [HuggingFace]() checkpoint with:
+You can run MADELEINE slide encoding (trained on 10x breast samples) using the [HuggingFace](https://huggingface.co/MahmoodLab/madeleine) checkpoint with:
 
 ```
 cd ./bin
