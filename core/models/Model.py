@@ -26,7 +26,7 @@ def create_model(
     
     # restore wsi embedder for downstream slide embedding extraction.
     if checkpoint_path:
-        state_dict = torch.load(checkpoint_path)
+        state_dict = torch.load(checkpoint_path, weights_only=False)
         sd = list(state_dict.keys())
         contains_module = any('module' in entry for entry in sd)
         
@@ -93,6 +93,19 @@ class MADELEINE(nn.Module):
         else:
             raise ValueError('Unsupported wsi_encoder. Must be "abmil". Now is {}.'.format(self.config.wsi_encoder))
         
+
+    def encode_he(self, feats, device):
+        feats = feats.to(device)
+        bs, _, _ = feats.shape
+        n_mod = 1
+        feats = feats.unsqueeze(dim=1)
+        HE_embedding = self.wsi_embedders(feats[:, HE_POSITION, : :], return_attention=False) 
+        d_out, n_heads = HE_embedding.shape[-2], HE_embedding.shape[-1]
+        HE_embedding = HE_embedding.view(bs*n_mod, d_out * n_heads)
+        HE_embedding = self.projector(HE_embedding)
+        HE_embedding = HE_embedding.view(bs, n_mod, d_out)
+        return HE_embedding.squeeze(dim=1)
+
     
     def forward(self, data, device, train=True, n_views = 1, custom_stain_idx=None, return_attention=False):
         

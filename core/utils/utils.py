@@ -1,7 +1,4 @@
 # general
-import sys
-sys.path.append('../')
-sys.path.append('../../')
 import os
 from collections import OrderedDict
 from tqdm import tqdm
@@ -52,16 +49,14 @@ def run_inference(ssl_model, val_dataloader, config=None, torch_precision=None):
     
     # do everything without grads 
     with torch.no_grad():
-        for data in tqdm(val_dataloader):
+        for feats, slide_ids in tqdm(val_dataloader):
             
             # forward
             with torch.amp.autocast(device_type="cuda", dtype=torch_precision):
-                wsi_embed = ssl_model(data=data, device=DEVICE, train=False)
-                
-            wsi_embed = wsi_embed['HE']
-            
-            all_embeds.extend(wsi_embed.squeeze(dim=1).to(torch.float32).detach().cpu().numpy())
-            all_slide_ids.append(data['slide_ids'][0])
+                wsi_embed = ssl_model.encode_he(feats, device=DEVICE)
+                            
+            all_embeds.extend(wsi_embed.to(torch.float32).detach().cpu().numpy())
+            all_slide_ids.append(slide_ids[0])
             
     all_embeds = np.array(all_embeds)
     all_embeds_tensor = torch.Tensor(all_embeds)
