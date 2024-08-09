@@ -153,9 +153,9 @@ class TissueSegmenter:
 
 
 def save_pkl(filename, save_object):
-	writer = open(filename,'wb')
-	pickle.dump(save_object, writer)
-	writer.close()
+    writer = open(filename,'wb')
+    pickle.dump(save_object, writer)
+    writer.close()
 
 
 def mask_rgb(rgb: np.ndarray, mask: np.ndarray) -> np.ndarray:
