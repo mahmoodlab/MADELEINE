@@ -1,5 +1,5 @@
 # Code for Multistain Pretraining for Slide Representation Learning in Pathology (ECCV'24)
-[arXiv]()
+[arXiv](https://arxiv.org/pdf/2408.02859) | [HuggingFace](https://huggingface.co/MahmoodLab/madeleine)
 
 Welcome to the official GitHub repository of our ECCV 2024 paper, "Multistain Pretraining for Slide Representation Learning in Pathology". This project was developed at the [Mahmood Lab](https://faisal.ai/) at Harvard Medical School and Brigham and Women's Hospital.
 
