@@ -1,6 +1,4 @@
-import sys
-sys.path.append('../')
-sys.path.append('../../')
+import sys; sys.path.append('../')
 
 # general
 import os

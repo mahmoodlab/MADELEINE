@@ -16,10 +16,6 @@ import openslide
 from PIL import Image
 
 
-import numpy as np
-from shapely.geometry import Point, Polygon
-
-
 class CucimWarningSingleton:
     _warned_cucim = False
 
