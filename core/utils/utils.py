@@ -199,3 +199,38 @@ def smooth_rank_measure(embedding_matrix, eps=1e-7):
     smooth_rank = round(smooth_rank.item(), 2)
     
     return smooth_rank
+
+
+
+def mag_to_px_size(mag):
+    if mag == 5: return 2.0
+    if mag == 10: return 1.0
+    if mag == 20: return 0.5
+    if mag == 40: return 0.25
+    else: raise ValueError('Magnification should be in [5, 10, 20, 40].')
+
+
+def get_pixel_size(slide):
+    """
+    Extracts the pixel size from a whole slide image (WSI).
+
+    Parameters:
+        slide (OpenSlide): 
+
+    Returns:
+        float: pixel size in microns.
+    """
+    from openslide import PROPERTY_NAME_MPP_X
+
+    # Get the pixel size
+    try:
+        # OpenSlide provides pixel size in microns in the properties
+        pixel_size = float(slide.properties.get(PROPERTY_NAME_MPP_X, 0))
+    except Exception as e:
+        raise ValueError("Could not retrieve pixel size: " + str(e))
+
+    # Check if pixel size was successfully retrieved
+    if pixel_size == 0:
+        raise ValueError("Pixel size information is not available in the slide metadata.")
+
+    return pixel_size
