@@ -1,14 +1,15 @@
 import sys; sys.path.append('../')
 import argparse
-import os
 import logging
+import os
 
 import openslide
 from tqdm import tqdm
+from core.utils.utils import get_pixel_size
 
-from core.preprocessing.conch_patch_embedder import TileEmbedder
-from core.preprocessing.hest_modules.segmentation import TissueSegmenter
-from core.preprocessing.hest_modules.wsi import get_pixel_size, OpenSlideWSI
+from core.preprocessing.conch_patch_embedder import ConchTileEmbedder
+from hestcore.wsi import OpenSlideWSI
+from hestcore.segmentation import segment_tissue_deep
 
 # Configure logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,8 +39,7 @@ def process(slide_dir, out_dir, patch_mag, patch_size):
     os.makedirs(patch_emb_path, exist_ok=True)
 
     # create tissue segmenter and tile embedder
-    segmenter = TissueSegmenter(save_path=seg_path, batch_size=64)
-    embedder = TileEmbedder(target_patch_size=patch_size, target_mag=patch_mag, save_path=out_dir)
+    embedder = ConchTileEmbedder(target_patch_size=patch_size, target_mag=patch_mag, save_path=out_dir)
 
     for fn in tqdm(fnames):
 
@@ -49,13 +49,21 @@ def process(slide_dir, out_dir, patch_mag, patch_size):
         fn_no_extension = os.path.splitext(fn)[0]
 
         # 2. segment tissue 
-        gdf_contours = segmenter.segment_tissue(
-            wsi=wsi,
-            pixel_size=pixel_size,
-            save_bn=fn_no_extension,
+        gdf_contours = segment_tissue_deep(
+            wsi,
+            pixel_size,
+            batch_size=64
         )
 
-        # 3. extract patches and embeddings
+        # 3. save segmentation + visualization
+        os.makedirs(os.path.join(out_dir, 'geojson'), exist_ok=True)
+        os.makedirs(os.path.join(out_dir, 'jpeg'), exist_ok=True)
+        seg_name = fn_no_extension + '_tissue_vis.jpeg'
+        wsi.get_tissue_vis(gdf_contours).save(os.path.join(out_dir, 'jpeg', seg_name))
+        seg_name = fn_no_extension + '_tissue_mask.geojson'
+        gdf_contours.to_file(os.path.join(out_dir, 'geojson', seg_name), driver="GeoJSON")
+
+        # 4. extract patches and embeddings
         embedder.embed_tiles(
             wsi=wsi,
             gdf_contours=gdf_contours,
