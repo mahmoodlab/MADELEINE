@@ -1,16 +1,18 @@
-from tqdm import tqdm 
-import numpy as np 
-import h5py 
 import os
-from PIL import Image
 
-import torch 
-from torch.utils.data import Dataset
-
+import h5py
+import numpy as np
+import torch
+import torchvision.transforms as transforms
 from conch.open_clip_custom import create_model_from_pretrained
-
+from hestcore.datasets import WSIPatcherDataset
 # from core.preprocessing.hest_modules.wsi import WSIPatcher
-from core.preprocessing.hest_modules.wsi import OpenSlideWSIPatcher, get_pixel_size
+from hestcore.wsi import OpenSlideWSIPatcher
+from PIL import Image
+from torch.utils.data import Dataset
+from tqdm import tqdm
+
+from core.utils.utils import get_pixel_size, mag_to_px_size
 
 
 def save_hdf5(output_fpath, 
@@ -72,7 +74,7 @@ def collate_features(batch):
     return features, coords
 
 
-class TileEmbedder:
+class ConchTileEmbedder:
     def __init__(self, 
                  model_name='conch_ViT-B-16',
                  model_repo='hf_hub:MahmoodLab/conch',
@@ -100,13 +102,23 @@ class TileEmbedder:
         patching_save_path = os.path.join(self.save_path, 'patches', f'{fn}_patches.png')
         embedding_save_path = os.path.join(self.save_path, 'patch_embeddings', f'{fn}.h5')
 
-        dataset = TileDataset(
-            wsi=wsi,
-            gdf_contours=gdf_contours,
-            target_patch_size=self.target_patch_size,
-            target_mag=self.target_mag,
-            eval_transform=self.img_transforms,
-            save_path=patching_save_path)
+        dst_pixel_size = mag_to_px_size(self.target_mag)
+        src_pixel_size = get_pixel_size(wsi.img)
+
+        patcher = wsi.create_patcher(
+            self.target_patch_size,
+            src_pixel_size,
+            dst_pixel_size,
+            mask=gdf_contours,
+            pil=True
+        )
+
+        conch_transforms = transforms.Compose([
+            self.img_transforms, 
+            transforms.Lambda(lambda x: torch.unsqueeze(x, 0))
+        ])
+
+        dataset = WSIPatcherDataset(patcher, transform=conch_transforms)
         
         dataloader = torch.utils.data.DataLoader(
             dataset, 
@@ -131,45 +143,3 @@ class TileEmbedder:
             save_hdf5(embedding_save_path, mode=mode, asset_dict=asset_dict)
         
         return embedding_save_path
-
-
-class TileDataset(Dataset):
-    def __init__(self, wsi, gdf_contours, target_patch_size, target_mag, eval_transform, save_path=None):
-        self.wsi = wsi
-        self.gdf_contours = gdf_contours
-        self.eval_transform = eval_transform
-
-        self.patcher = OpenSlideWSIPatcher(
-            wsi=wsi,
-            patch_size=target_patch_size,
-            src_pixel_size=get_pixel_size(wsi.img),
-            dst_pixel_size=self.mag_to_px_size(target_mag),
-            mask=gdf_contours,
-            coords_only=False,
-        )
-        self.patcher.save_visualization(path=save_path)
-
-    @staticmethod
-    def mag_to_px_size(mag):
-        if mag == 5: return 2.0
-        if mag == 10: return 1.0
-        if mag == 20: return 0.5
-        if mag == 40: return 0.25
-        else: raise ValueError('Magnification should be in [5, 10, 20, 40].')
-
-    # def _load_coords(self):
-    # 	with h5py.File(self.coords_h5_fpath, "r") as f:
-    # 		self.attr_dict = {k: dict(f[k].attrs) for k in f.keys() if len(f[k].attrs) > 0}
-    # 		self.coords = f['coords'][:]
-    # 		self.patch_size = f['coords'].attrs['patch_size']
-    # 		self.custom_downsample = f['coords'].attrs['custom_downsample']
-    # 		self.target_patch_size = int(self.patch_size) // int(self.custom_downsample) if self.custom_downsample > 1 else self.patch_size
-
-    def __len__(self):
-        return len(self.patcher)
-
-    def __getitem__(self, idx):
-        img, x, y = self.patcher[idx]
-        img = Image.fromarray(img, 'RGB')
-        img = self.eval_transform(img).unsqueeze(dim=0)
-        return img, (x, y)
