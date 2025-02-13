@@ -2,12 +2,12 @@ import os
 import json
 from argparse import Namespace
 
-from core.models.Model import create_model
+from madeleine.models.Model import create_model
 import pdb
 
 from huggingface_hub import snapshot_download
 
-from core.utils.utils import set_model_precision 
+from madeleine.utils.utils import set_model_precision 
 
 # local_dir = ''
 # snap_download(repo_id="hf_hub:MahmoodLab/madeleine", local_dir=local_dir)

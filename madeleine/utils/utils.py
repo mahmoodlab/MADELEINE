@@ -17,7 +17,7 @@ import torch.backends.cudnn # type: ignore
 import torch.cuda # type: ignore
 
 # internal
-from core.utils.file_utils import save_pkl
+from madeleine.utils.file_utils import save_pkl
 
 # global magic numbers
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

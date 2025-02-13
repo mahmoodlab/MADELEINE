@@ -8,7 +8,7 @@ import numpy as np
 import torch # type: ignore
 
 # internal
-from core.utils.utils import set_model_precision, smooth_rank_measure
+from madeleine.utils.utils import set_model_precision, smooth_rank_measure
 
 # global magic numbers
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

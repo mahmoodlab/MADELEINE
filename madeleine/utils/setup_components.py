@@ -17,12 +17,12 @@ import torch.optim as optim # type: ignore
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR # type: ignore
 
 # internal
-from core.utils.loss import InfoNCE, GOT
-from core.models.Model import MADELEINE
-from core.utils.file_utils import print_network
-from core.datasets.wsi_dataset import SlideDataset, collate
-from core.utils.process_args import get_args
-from core.datasets.modalities import modality_dicts
+from madeleine.utils.loss import InfoNCE, GOT
+from madeleine.models.Model import MADELEINE
+from madeleine.utils.file_utils import print_network
+from madeleine.datasets.wsi_dataset import SlideDataset, collate
+from madeleine.utils.process_args import get_args
+from madeleine.datasets.modalities import modality_dicts
 
 
 # global magic numbers

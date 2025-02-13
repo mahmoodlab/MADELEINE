@@ -23,7 +23,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from core.preprocessing.hest_modules.wsi import WSI, wsi_factory
+from madeleine.preprocessing.hest_modules.wsi import WSI, wsi_factory
 from .SegDataset import SegWSIDataset
 
 

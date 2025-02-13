@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from conch.open_clip_custom import create_model_from_pretrained
 
 # from core.preprocessing.hest_modules.wsi import WSIPatcher
-from core.preprocessing.hest_modules.wsi import OpenSlideWSIPatcher, get_pixel_size
+from madeleine.preprocessing.hest_modules.wsi import OpenSlideWSIPatcher, get_pixel_size
 
 
 def save_hdf5(output_fpath, 

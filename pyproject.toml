@@ -19,7 +19,6 @@ dependencies = [
     "h5py>=3.9",
     "wandb>=0.17",
     "torch>=2.3.1",
-    "clamlite>=0.0.4",
     "geopandas>=1.0",
     "huggingface_hub",
     "shapely"
@@ -29,4 +28,4 @@ dependencies = [
 Homepage = "https://github.com/mahmoodlab/madeleine"
 
 [tool.setuptools.packages.find]
-include = ["core", "core.*"]  # Ensure 'core' and submodules are included
+include = ["madeleine", "madeleine.*"]  # Ensure 'core' and submodules are included

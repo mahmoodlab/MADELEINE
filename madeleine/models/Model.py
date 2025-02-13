@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 import torch # type: ignore
 from torch import nn # type: ignore
-from core.models.abmil import BatchedABMIL
+from madeleine.models.abmil import BatchedABMIL
 import pdb
 from einops import rearrange # type: ignore
 import numpy as np
