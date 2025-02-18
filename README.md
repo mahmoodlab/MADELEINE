@@ -10,6 +10,11 @@ Developing self-supervised learning (SSL) models that can learn universal and tr
 ## Overview
 <img src="support/overview.png" width="1024px" align="center" />
 
+## Updates
+- 02.2025: Madeleine has been integrated into [Trident](https://github.com/mahmoodlab/TRIDENT). Madeleine feature can be extracted with:
+```bash
+python run_batch_of_slides.py --task all --wsi_dir pngs/ --job_dir ./trident_processed8 --slide_encoder madeleine --mag 10 --patch_size 256`
+```
 
 ## Installation 
 
@@ -26,7 +31,7 @@ pip install -r requirements.txt
 
 ## Preprocessing: tissue segmentation, patching, and patch feature extraction
 
-We are extracting [CONCH](https://github.com/mahmoodlab/CONCH) features at 10x magnification on 256x256-pixel patches. The script uses a new deep learning-based tissue segmentation that can provide off-the-shelf H&E and IHC tissue detection. 
+We are extracting [CONCH](https://github.com/mahmoodlab/CONCH) features at 10x magnification on 256x256-pixel patches. The script uses a new deep learning-based tissue segmentation that can provide off-the-shelf H&E and IHC tissue detection (deprecated, please use Trident insteads. See Updates). 
 
 ```
 cd ./bin
@@ -45,6 +50,7 @@ You can run MADELEINE slide encoding (trained on 10x breast samples) using the [
 cd ./bin
 python extract_slide_embeddings.py --local_dir ../results/BCNB/
 ```
+Deprecated: please use Trident insteads. See Updates. 
 
 ## Linear probe for molecular status prediction
 To run linear probe using MADELEINE on BCNB molecular status prediction, run:
